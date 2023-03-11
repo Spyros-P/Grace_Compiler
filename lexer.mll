@@ -53,6 +53,7 @@
   | ">="        { T_grth }
   | '+'         { T_plus }
   | '-'         { T_minus }
+  | '*'         { T_mul }
   | '='         { T_eq }
   | '#'         { T_neq }
   | '<'         { T_less }
@@ -62,7 +63,7 @@
   | "$$"(_*)"$$"        { lexer lexbuf } (* consume multi  line comment *)
   | letter(letter | digit | '_')* { T_id }
   | digit+                        { T_constint }
-  | '\"'(letter | digit | escape | white)*'\"'   { T_conststring} (* this is obviously lacking *)
+  | '\"'('\\'_ | [^'\"'])*'\"'   { T_conststring} (* this is obviously lacking *)
 
   | eof         { T_eof }  (* lastly, eof and error *)
   | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d)"
