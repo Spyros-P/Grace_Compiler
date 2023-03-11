@@ -58,11 +58,10 @@
   | '<'         { T_less }
   | '>'         { T_gr }
   | white+              { lexer lexbuf } (* consume whitespaces *)
-  | '$'[^'\n']*'$'      { lexer lexbuf } (* consume single line comment *)
+  | '$'[^'\n']*         { lexer lexbuf } (* consume single line comment *)
   | "$$"(_*)"$$"        { lexer lexbuf } (* consume multi  line comment *)
   | letter(letter | digit | '_')* { T_id }
   | digit+                        { T_constint }
-  | '''(_ | escape)'''                       { T_constchar }
 
   | eof         { T_eof }  (* lastly, eof and error *)
   | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d)"
