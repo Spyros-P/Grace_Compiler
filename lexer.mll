@@ -62,7 +62,7 @@
   | "$$"(_*)"$$"        { lexer lexbuf } (* consume multi  line comment *)
   | letter(letter | digit | '_')* { T_id }
   | digit+                        { T_constint }
-  | '\"'(letter | digit | escape | white)*'\"'                    { T_conststring}
+  | '\"'(letter | digit | escape | white)*'\"'   { T_conststring} (* this is obviously lacking *)
 
   | eof         { T_eof }  (* lastly, eof and error *)
   | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d)"
