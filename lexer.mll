@@ -18,6 +18,7 @@
     let digit  = ['0'-'9']
     let letter = ['a'-'z''A'-'Z']
     let white  = [' ' '\t' '\r']
+    let hex    = ['0'-'9''a'-'f''A'-'F']
 
     (* rules section *)
 
@@ -58,14 +59,14 @@
   | '#'         { T_neq }
   | '<'         { T_less }
   | '>'         { T_gr }
-  | '\n'                { incr(lines); lexer lexbuf }
+  | '\n'                { incr(lines); lexer lexbuf } (* count new lines *)
   | white+              { lexer lexbuf } (* consume whitespaces *)
   | '$'[^'\n']*         { lexer lexbuf } (* consume single line comment *)
   | "$$"(_*)"$$"        { lexer lexbuf } (* consume multi  line comment *)
   | letter(letter | digit | '_')* { T_id }
   | digit+                        { T_constint }
-  | '\''('\\'_ | [^'\''])'\''     { T_constchar }
-  | '\"'('\\'_ | [^'\"'])*'\"'    { T_conststring } 
+  | '\''('\\'_ | "\\x" hex hex | [^'\''])'\''     { T_constchar }
+  | '\"'('\\'_ | "\\x" hex hex | [^'\"'])*'\"'    { T_conststring } 
 
   | eof         { T_eof }  (* lastly, eof and error *)
   | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d) at line %d"
