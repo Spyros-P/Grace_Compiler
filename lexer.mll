@@ -10,14 +10,14 @@
         | T_lpar | T_rpar | T_lbrack | T_rbrack | T_lbrace | T_rbrace
         | T_comma | T_punct | T_split | T_assign
         | T_plus | T_minus | T_mul | T_eq | T_neq | T_less | T_gr | T_lessth | T_grth
+    let lines = ref 1
 }
 
 (* definitions section *)
 
     let digit  = ['0'-'9']
     let letter = ['a'-'z''A'-'Z']
-    let white  = [' ' '\t' '\r' '\n']
-    let escape = ['\n' '\t' '\r' '\'' '\\' '\"']
+    let white  = [' ' '\t' '\r']
 
     (* rules section *)
 
@@ -58,17 +58,18 @@
   | '#'         { T_neq }
   | '<'         { T_less }
   | '>'         { T_gr }
+  | '\n'                { incr(lines); lexer lexbuf }
   | white+              { lexer lexbuf } (* consume whitespaces *)
   | '$'[^'\n']*         { lexer lexbuf } (* consume single line comment *)
   | "$$"(_*)"$$"        { lexer lexbuf } (* consume multi  line comment *)
   | letter(letter | digit | '_')* { T_id }
   | digit+                        { T_constint }
-  | '\''('\\'_ | [^'\''])'\''                   { T_constchar }
+  | '\''('\\'_ | [^'\''])'\''     { T_constchar }
   | '\"'('\\'_ | [^'\"'])*'\"'    { T_conststring } 
 
   | eof         { T_eof }  (* lastly, eof and error *)
-  | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d)"
-                    chr (Char.code chr);
+  | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d) at line %d"
+                    chr (Char.code chr) !lines;
                   lexer lexbuf }
 
   (* trailer section *)
