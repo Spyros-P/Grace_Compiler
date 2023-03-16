@@ -19,10 +19,20 @@
     let letter = ['a'-'z''A'-'Z']
     let white  = [' ' '\t' '\r']
     let hex    = ['0'-'9''a'-'f''A'-'F']
+    let escape = ['\"' '\'' '0' 'r' 't' 'n' '\\']
 
     (* rules section *)
 
-    rule lexer = parse
+    rule consume_single_comment = parse
+    '\n' { incr(lines); lexer lexbuf } (* count new lines *)
+  | _    { consume_single_comment lexbuf }
+
+    and consume_multi_comment = parse
+    "$$" { lexer lexbuf }
+  | '\n' { incr(lines); consume_multi_comment lexbuf } (* count new lines *)
+  | _    { consume_multi_comment lexbuf }
+
+    and lexer = parse
     "and"       { T_and } (* firstly, keywords *)
   | "char"      { T_char }
   | "div"       { T_div }
@@ -61,17 +71,18 @@
   | '>'         { T_gr }
   | '\n'                { incr(lines); lexer lexbuf } (* count new lines *)
   | white+              { lexer lexbuf } (* consume whitespaces *)
-  | '$'[^'\n']*         { lexer lexbuf } (* consume single line comment *)
-  | "$$"(_*)"$$"        { lexer lexbuf } (* consume multi  line comment *)
+  | '$'         { consume_single_comment lexbuf } (* consume single line comment *)
+  | "$$"        { consume_multi_comment lexbuf } (* consume multi  line comment *)
   | letter(letter | digit | '_')* { T_id }
   | digit+                        { T_constint }
-  | '\''('\\'_ | "\\x" hex hex | [^'\''])'\''     { T_constchar }
-  | '\"'('\\'_ | "\\x" hex hex | [^'\"'])*'\"'    { T_conststring } 
+  | '\''('\\' escape | "\\x" hex hex | [^'\'' '\\' '\n'])'\''     { T_constchar }
+  | '\"'('\\' escape | "\\x" hex hex | [^'\"' '\\' '\n'])*'\"'    { T_conststring } 
 
   | eof         { T_eof }  (* lastly, eof and error *)
-  | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d) at line %d"
+  | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d) at line %d\n"
                     chr (Char.code chr) !lines;
                   lexer lexbuf }
+
 
   (* trailer section *)
 
@@ -124,8 +135,8 @@
         let lexbuf = Lexing.from_channel stdin in
         let rec loop () =
             let token = lexer lexbuf in 
-            Printf.printf "token=%s, lexeme=\"%s\"\n"
-            (string_of_token token) (Lexing.lexeme lexbuf);
+            Printf.printf "line=%d, token=%s, lexeme=\"%s\"\n"
+            (!lines) (string_of_token token) (Lexing.lexeme lexbuf);
             if token <> T_eof then loop () in
         loop ()
   }
