@@ -1,4 +1,4 @@
-.PHONY=all build run
+.PHONY=all build run clean
 
 test_program=hanoi.grc
 
@@ -14,3 +14,6 @@ lexer.ml: lexer.mll
 
 run:
 	./lexer.byte < ${test_program}
+
+clean:
+	rm lexer.byte lexer.cmi lexer.cmo lexer.ml
