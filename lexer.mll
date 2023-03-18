@@ -25,12 +25,15 @@
 
     rule consume_single_comment = parse
     '\n' { incr(lines); lexer lexbuf } (* count new lines *)
-  | _    { consume_single_comment lexbuf }
+  | eof  { T_eof }  (* lastly, eof and error *)
+  | [^'\n' eof]+    { consume_single_comment lexbuf } (* consume large chunks for speed up *)
 
     and consume_multi_comment = parse
     "$$" { lexer lexbuf }
+  | '$''  {}
   | '\n' { incr(lines); consume_multi_comment lexbuf } (* count new lines *)
-  | _    { consume_multi_comment lexbuf }
+  | [^'$' '\n' eof]    { consume_multi_comment lexbuf } (* consume large chunks for speed up *)
+  | eof  { Printf.eprintf "multiline comment started but never closed"; exit 1 }
 
     and lexer = parse
     "and"       { T_and } (* firstly, keywords *)
@@ -81,7 +84,7 @@
   | eof         { T_eof }  (* lastly, eof and error *)
   | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d) at line %d\n"
                     chr (Char.code chr) !lines;
-                  lexer lexbuf }
+                  exit 1 }
 
 
   (* trailer section *)
@@ -135,8 +138,8 @@
         let lexbuf = Lexing.from_channel stdin in
         let rec loop () =
             let token = lexer lexbuf in 
-            Printf.printf "line=%d, token=%s, lexeme=\"%s\"\n"
-            (!lines) (string_of_token token) (Lexing.lexeme lexbuf);
+            Printf.printf "token=%s, lexeme=\"%s\"\n"
+            (string_of_token token) (Lexing.lexeme lexbuf);
             if token <> T_eof then loop () in
         loop ()
   }
