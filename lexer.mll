@@ -26,13 +26,13 @@
     rule consume_single_comment = parse
     '\n' { incr(lines); lexer lexbuf } (* count new lines *)
   | eof  { T_eof }  (* lastly, eof and error *)
-  | [^'\n' eof]+    { consume_single_comment lexbuf } (* consume large chunks for speed up *)
+  | [^'\n']+    { consume_single_comment lexbuf } (* consume large chunks for speed up *)
 
     and consume_multi_comment = parse
     "$$" { lexer lexbuf }
-  | '$''  {}
+  | '$'  { consume_multi_comment lexbuf }
   | '\n' { incr(lines); consume_multi_comment lexbuf } (* count new lines *)
-  | [^'$' '\n' eof]    { consume_multi_comment lexbuf } (* consume large chunks for speed up *)
+  | [^'$' '\n']    { consume_multi_comment lexbuf } (* consume large chunks for speed up *)
   | eof  { Printf.eprintf "multiline comment started but never closed"; exit 1 }
 
     and lexer = parse
