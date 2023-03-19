@@ -1,145 +1,96 @@
-(* header section *)
-
 {
-    type token =
-        | T_eof | T_id
-        | T_constint | T_constchar | T_conststring
-        | T_and | T_char | T_div | T_do | T_else | T_fun | T_if
-        | T_int | T_mod | T_not | T_nothing | T_or | T_ref | T_return
-        | T_then | T_var | T_while
-        | T_lpar | T_rpar | T_lbrack | T_rbrack | T_lbrace | T_rbrace
-        | T_comma | T_punct | T_split | T_assign
-        | T_plus | T_minus | T_mul | T_eq | T_neq | T_less | T_gr | T_lessth | T_grth
-    let lines = ref 1
+    open Parser
+    exception Error of char
 }
 
 (* definitions section *)
 
-    let digit  = ['0'-'9']
-    let letter = ['a'-'z''A'-'Z']
-    let white  = [' ' '\t' '\r']
-    let hex    = ['0'-'9''a'-'f''A'-'F']
-    let escape = ['\"' '\'' '0' 'r' 't' 'n' '\\']
+let digit  = ['0'-'9']
+let letter = ['a'-'z''A'-'Z']
+let white  = [' ' '\t' '\r']
+let hex    = ['0'-'9''a'-'f''A'-'F']
+let escape = ['\"' '\'' '0' 'r' 't' 'n' '\\']
 
-    (* rules section *)
+(* rules section *)
 
-    rule consume_single_comment = parse
-    '\n' { incr(lines); lexer lexbuf } (* count new lines *)
-  | eof  { T_eof }  (* lastly, eof and error *)
-  | [^'\n']+    { consume_single_comment lexbuf } (* consume large chunks for speed up *)
+rule consume_single_comment = parse
+    | '\n' { Lexing.new_line lexbuf; lexer lexbuf }
+    | eof  { EOF }
+    | [^'\n']+    { consume_single_comment lexbuf } (* consume large chunks for speed up *)
 
-    and consume_multi_comment = parse
-    "$$" { lexer lexbuf }
-  | '$'  { consume_multi_comment lexbuf }
-  | '\n' { incr(lines); consume_multi_comment lexbuf } (* count new lines *)
-  | [^'$' '\n']    { consume_multi_comment lexbuf } (* consume large chunks for speed up *)
-  | eof  { Printf.eprintf "multiline comment started but never closed"; exit 1 }
+and consume_multi_comment = parse
+    | "$$" { lexer lexbuf }
+    | '$'  { consume_multi_comment lexbuf }
+    | '\n' { Lexing.new_line lexbuf; consume_multi_comment lexbuf }
+    | [^'$' '\n']+    { consume_multi_comment lexbuf } (* consume large chunks for speed up *)
+    | eof  { Printf.eprintf "Multiline comment started but never closed\n"; exit 1 }
 
-    and lexer = parse
-    "and"       { T_and } (* firstly, keywords *)
-  | "char"      { T_char }
-  | "div"       { T_div }
-  | "do"        { T_do }
-  | "else"      { T_else }
-  | "fun"       { T_fun }
-  | "if"        { T_if }
-  | "int"       { T_int }
-  | "mod"       { T_mod }
-  | "not"       { T_not }
-  | "nothing"   { T_nothing }
-  | "or"        { T_or }
-  | "ref"       { T_ref }
-  | "return"    { T_return }
-  | "then"      { T_then }
-  | "var"       { T_var }
-  | "while"     { T_while }
-  | '('         { T_lpar } (* then, splitters *)
-  | ')'         { T_rpar }
-  | '['         { T_lbrack }
-  | ']'         { T_rbrack }
-  | '{'         { T_lbrace }
-  | '}'         { T_rbrace }
-  | ','         { T_comma }
-  | ';'         { T_punct }
-  | ':'         { T_split }
-  | "<-"        { T_assign }
-  | "<="        { T_lessth } (* then, operators *)
-  | ">="        { T_grth }
-  | '+'         { T_plus }
-  | '-'         { T_minus }
-  | '*'         { T_mul }
-  | '='         { T_eq }
-  | '#'         { T_neq }
-  | '<'         { T_less }
-  | '>'         { T_gr }
-  | '\n'                { incr(lines); lexer lexbuf } (* count new lines *)
-  | white+              { lexer lexbuf } (* consume whitespaces *)
-  | '$'         { consume_single_comment lexbuf } (* consume single line comment *)
-  | "$$"        { consume_multi_comment lexbuf } (* consume multi  line comment *)
-  | letter(letter | digit | '_')* { T_id }
-  | digit+                        { T_constint }
-  | '\''('\\' escape | "\\x" hex hex | [^'\'' '\\' '\n'])'\''     { T_constchar }
-  | '\"'('\\' escape | "\\x" hex hex | [^'\"' '\\' '\n'])*'\"'    { T_conststring } 
-
-  | eof         { T_eof }  (* lastly, eof and error *)
-  | _ as chr    { Printf.eprintf "invalid character : '%c' (ascii: %d) at line %d\n"
-                    chr (Char.code chr) !lines;
-                  exit 1 }
-
-
-  (* trailer section *)
-
-  {
-    let string_of_token token =
-        match token with
-        | T_eof -> "T_eof"
-        | T_id -> "T_id"
-        | T_constint -> "T_constint"
-        | T_constchar -> "T_constchar"
-        | T_conststring -> "T_conststring"
-        | T_and -> "T_and"
-        | T_char -> "T_char"
-        | T_div -> "T_div"
-        | T_do -> "T_do"
-        | T_else -> "T_else"
-        | T_fun -> "T_fun"
-        | T_if -> "T_if"
-        | T_int -> "T_int"
-        | T_mod -> "T_mod"
-        | T_not -> "T_not"
-        | T_nothing -> "T_nothing"
-        | T_or -> "T_or"
-        | T_ref -> "T_ref"
-        | T_return -> "T_return"
-        | T_then -> "T_then"
-        | T_var -> "T_var"
-        | T_while -> "T_while"
-        | T_lpar -> "T_lpar"
-        | T_rpar -> "T_rpar"
-        | T_lbrack -> "T_lbrack"
-        | T_rbrack -> "T_rbrack"
-        | T_lbrace -> "T_lbrace"
-        | T_rbrace -> "T_rbrace"
-        | T_comma -> "T_comma"
-        | T_punct -> "T_punct"
-        | T_split -> "T_split"
-        | T_assign -> "T_assign"
-        | T_plus -> "T_plus"
-        | T_minus -> "T_minus"
-        | T_mul -> "T_mul"
-        | T_eq -> "T_eq"
-        | T_neq -> "T_neq"
-        | T_less -> "T_less"
-        | T_gr -> "T_gr"
-        | T_lessth -> "T_lessth"
-        | T_grth -> "T_grth"
-
-    let main = 
-        let lexbuf = Lexing.from_channel stdin in
-        let rec loop () =
-            let token = lexer lexbuf in 
-            Printf.printf "token=%s, lexeme=\"%s\"\n"
-            (string_of_token token) (Lexing.lexeme lexbuf);
-            if token <> T_eof then loop () in
-        loop ()
-  }
+and lexer = parse
+    | letter(letter | digit | '_')* as str
+        { match str with
+        | "and"     ->  AND
+        | "char"    ->  CHAR
+        | "div"     ->  DIV
+        | "do"      ->  DO
+        | "else"    ->  ELSE
+        | "fun"     ->  FUN
+        | "if"      ->  IF
+        | "int"     ->  INT
+        | "mod"     ->  MOD
+        | "not"     ->  NOT
+        | "nothing" ->  NOTHING
+        | "or"      ->  OR
+        | "ref"     ->  REF
+        | "return"  ->  RETURN
+        | "then"    ->  THEN
+        | "var"     ->  VAR
+        | "while"   ->  WHILE
+        | _         ->  ID(str)
+        }
+    | '('           { L_PAREN } (* then, splitters *)
+    | ')'           { R_PAREN }
+    | '['           { L_BRACK }
+    | ']'           { R_BRACK }
+    | '{'           { L_BRACE }
+    | '}'           { R_BRACE }
+    | ','           { COMMA }
+    | ';'           { PUNCT }
+    | ':'           { SPLIT }
+    | "<-"          { ASSIGN }
+    | "<="          { LESS_EQ } (* then, operators *)
+    | ">="          { GREATER_EQ }
+    | '+'           { PLUS }
+    | '-'           { MINUS }
+    | '*'           { MUL }
+    | '='           { EQUAL }
+    | '#'           { NOT_EQUAL }
+    | '<'           { LESS }
+    | '>'           { GREATER }
+    | digit+ as str { INTEGER(int_of_string str) }
+    | '\n'          { Lexing.new_line lexbuf; lexer lexbuf } (* count new lines *)
+    | white+        { lexer lexbuf } (* consume whitespaces *)
+    | '$'           { consume_single_comment lexbuf } (* consume single line comment *)
+    | "$$"          { consume_multi_comment lexbuf  } (* consume multi  line comment *)
+    | '\''('\\' escape | "\\x" hex hex | [^'\'' '\\' '\n'])'\'' as str
+        { match str.[0] with
+        | '\\' ->
+            ( match String.sub str 1 1 with
+            | "n"  -> CHARACTER('\n')
+            | "r"  -> CHARACTER('\r')
+            | "t"  -> CHARACTER('\t')
+            | "\\" -> CHARACTER('\\')
+            | "x"  ->
+                (try
+                    let code = int_of_string ("0x" ^ String.sub str 2 2) in
+                    CHARACTER(Char.chr code)
+                with
+                    _ -> failwith "Invalid hexadecimal escape sequence"
+                )
+                | _ -> failwith "Invalid escape sequence"
+            )
+        | c -> CHARACTER(c)
+        }
+    | '\"'('\\' escape | "\\x" hex hex | [^'\"' '\\' '\n'])*'\"' as str 
+        { STRING(str) } 
+    | eof           { EOF }  (* lastly, eof and error *)
+    | _ as chr      { raise (Error chr) }
