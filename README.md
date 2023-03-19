@@ -1,3 +1,3 @@
-Built command
+Built Command:
 
-  ocamlbuild -use-menhir main.native
+    ocamlbuild -use-menhir main.native
