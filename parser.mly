@@ -49,152 +49,166 @@
 %nonassoc ELSE
 
 %start program
-%type <int> program
+%type <block> program
+%type <expr> expr
+%type <lvalue> l_value
+%type <expr> func_call
+%type <expr list> fun_args
+%type <stmt list> stmt_star
+%type <block> block
+%type <cond> cond
 
 %%
 
-/*                                                            ALIGN         */
-/*                                                              |           */
-program:/*                                                      V           */
-    | func_def EOF                                              { 1 }
+/*                                                        ALIGN             */
+/*                                                          |               */
+program:/*                                                  V               */
+    | f=block EOF                                        { f }
     ;
 
 func_def:
-    | header local_def* block                                   {}
+    | header local_def_star block                           {}
+    ;
+
+local_def_star:
+    | local_def_star local_def                              {}
+    | /* nothing */                                         {}
     ;
 
 header:
-    | FUN ID "(" fparams_def? ")" ":" ret_type                  {}
+    | FUN ID "(" fparams_def ")" ":" ret_type               {}
+    | FUN ID "(" ")" ":" ret_type                           {}
     ;
 
 /* >>> Help */
 fparams_def:
-    | fpar_def semic_fpar_def*                                  {}
+    | fpar_def semic_fpar_def_star                          {}
     ;
 
-semic_fpar_def:
-    | ";" fpar_def                                              {}
+semic_fpar_def_star:
+    | semic_fpar_def_star ";" fpar_def                      {}
+    | /* nothing */                                         {}
     ;
 /* <<< Help */
 
 fpar_def:
-    | REF? ID comma_id* ":" fpar_type                           {}
+    | REF ID comma_id_star ":" fpar_type                    {}
+    | ID comma_id_star ":" fpar_type                        {}
     ;
 
 /* >>> Help */
-comma_id:
-    | "," ID                                                    {}
+comma_id_star:
+    | comma_id_star "," ID                                  {}
+    | /* nothing */                                         {}
     ;
 /* <<< Help */
 
 data_type:
-    | INT                                                       {}
-    | CHAR                                                      {}
+    | INT                                                   {}
+    | CHAR                                                  {}
     ;
 
 ttype:
-    | data_type brack_integer*                                  {}
+    | data_type brack_integer_star                          {}
     ;
 
 /* >>> Help */
-brack_integer:
-    | "[" INTEGER "]"                                           {}
+brack_integer_star:
+    | brack_integer_star "[" INTEGER "]"                    {}
+    | /* nothing */                                         {}
     ;
 /* <<< Help */
 
 ret_type:
-    | data_type                                                 {}
-    | NOTHING                                                   {}
+    | data_type                                             {}
+    | NOTHING                                               {}
     ;
 
 fpar_type:
-    | data_type empty_bracks? brack_integer*                    {}
+    | data_type brack_integer_star                          {}
+    | data_type "[" "]" brack_integer_star                  {}
     ;
 
-/* >>> Help */
-empty_bracks:
-    | "[" "]"                                                   {}
-    ;
-/* <<< Help */
 
 local_def:
-    | func_def                                                  {}
-    | func_decl                                                 {}
-    | var_def                                                   {}
+    | func_def                                              {}
+    | func_decl                                             {}
+    | var_def                                               {}
     ;
 
 func_decl:
-    | header ";"                                                {}
+    | header ";"                                            {}
     ;
 
 var_def:
-    | VAR ID comma_id* ":" ttype ";"                            {}
+    | VAR ID comma_id_star ":" ttype ";"                    {}
     ;
 
 stmt:
-    | ";"                                                       {}
-    | l_value "<-" expr ";"                                     {}
-    | block                                                     {}
-    | func_call ";"                                             {}
-    | IF cond THEN stmt else_stmt?                              {}
-    | WHILE cond DO stmt                                        {}
-    | RETURN expr? ";"                                          {}
+    | ";"                                                   { EEmpty }
+    | l=l_value "<-" e=expr ";"                             { EAss(l,e) }
+    | b=block                                               { EBlock(b) }
+    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) }
+    | IF c=cond THEN s=stmt                                 { EIf(c,s) }
+    | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2) }
+    | WHILE c=cond DO s=stmt                                { EWhile(c,s) }
+    | RETURN ";"                                            { ERet }
+    | RETURN e=expr ";"                                     { ERetVal(e) }
+    ;
+
+block:
+    | "{" list=stmt_star "}"                                { EListStmt(list) }
     ;
 
 /* >>> Help */
-else_stmt:
-    | ELSE stmt                                                 {}
+stmt_star:
+    | st=stmt list=stmt_star                                { st::list }
+    | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
-block:
-    | "{" stmt* "}"                                             {}
-    ;
-
 func_call:
-    | ID "(" fun_args? ")"                                      {}
+    | id=ID "(" arg=fun_args ")"                            { EFuncCall(id,arg) }
     ;
 
 /* >>> Help */
 fun_args:
-    | expr comma_expr*                                          {}
-    ;
-
-comma_expr:
-    | "," expr                                                  {}
+    | e=expr "," list=fun_args                              { e::list }
+    | e=expr                                                { e::[] }
+    | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
 l_value:
-    | ID                                                        {}
-    | STRING                                                    {}
-    | l_value "[" expr "]"                                      {}
+    | id=ID                                                 { EAssId(id) }
+    | s=STRING                                              { EAssString(s) }
+    | l=l_value "[" e=expr "]"                              { EAssArrEl(l,e) }
     ;
 
 expr:
-    | INTEGER                                                   {}
-    | CHARACTER                                                 {}
-    | l_value                                                   {}
-    | "(" expr ")"                                              {}
-    | func_call                                                 {}
-    | "+" expr                                                  {}
-    | "-" expr                                                  {}
-    | expr "+" expr                                             {}
-    | expr "-" expr                                             {}
-    | expr "*" expr                                             {}
-    | expr DIV expr                                             {}
-    | expr MOD expr                                             {}
+    | i=INTEGER                                             { EInt(i) }
+    | c=CHARACTER                                           { EChar(c) }
+    | l=l_value                                             { ELVal(l) }
+    | "(" e=expr ")"                                        { e }
+    | f=func_call                                           { f }
+    | "+" e=expr                                            { e }
+    | "-" e=expr                                            { EUnOp(UnopMinus,e) }
+    | e1=expr "+" e2=expr                                   { EBinOp(BopAdd,e1,e2) }
+    | e1=expr "-" e2=expr                                   { EBinOp(BopSub,e1,e2) }
+    | e1=expr "*" e2=expr                                   { EBinOp(BopMul,e1,e2) }
+    | e1=expr DIV e2=expr                                   { EBinOp(BopDiv,e1,e2) }
+    | e1=expr MOD e2=expr                                   { EBinOp(BopMod,e1,e2) }
     ;
 
 cond:
-    | "(" cond ")"                                              {}
-    | NOT cond                                                  {}
-    | cond AND cond                                             {}
-    | cond OR cond                                              {}
-    | expr "=" expr                                             {}
-    | expr "#" expr                                             {}
-    | expr "<" expr                                             {}
-    | expr ">" expr                                             {}
-    | expr "<=" expr                                            {}
-    | expr ">=" expr                                            {}
+    | "(" c=cond ")"                                        { c }
+    | NOT c=cond                                            { ELuop(LuopNot,c) }
+    | c1=cond AND c2=cond                                   { ELbop(LbopAnd,c1,c2) }
+    | c1=cond OR c2=cond                                    { ELbop(LbopOr,c1,c2) }
+    | e1=expr "=" e2=expr                                   { EComp(CompEq,e1,e2) }
+    | e1=expr "#" e2=expr                                   { EComp(CompNeq,e1,e2) }
+    | e1=expr "<" e2=expr                                   { EComp(CompLs,e1,e2) }
+    | e1=expr ">" e2=expr                                   { EComp(CompGr,e1,e2) }
+    | e1=expr "<=" e2=expr                                  { EComp(CompLsEq,e1,e2) }
+    | e1=expr ">=" e2=expr                                  { EComp(CompGrEq,e1,e2) }
     ;

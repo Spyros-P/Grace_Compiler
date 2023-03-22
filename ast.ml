@@ -1,49 +1,59 @@
 open Printf
 
 type bop = BopAdd | BopSub | BopMul | BopDiv | BopMod
-type uop = UnopMinus
-type lbop = LbopAnd | Lbop | LbopOr
-type luop = LuopNot
-type comp = CompEq | CompNeq | CompGr | CompLs | CompGrEq | CompLsEq
+and uop = UnopMinus
+and lbop = LbopAnd | LbopOr
+and luop = LuopNot
+and comp = CompEq | CompNeq | CompGr | CompLs | CompGrEq | CompLsEq
 
-type types = EInteger | ECharacter | EString | EIntList | ECharList
+and types = EInteger | ECharacter | EString | EIntList | ECharList
 
-(* type bool = True | False *)
-
-type func_args =
+and func_args =
   | EArgId     of string
   | EArgInt    of int
   | EArgChar   of char
 
-type expr =
+and lvalue =
+  | EAssId     of string
+  | EAssString of string
+  | EAssArrEl  of lvalue * expr
+
+and expr =
+  | ELVal   of lvalue
   | EInt    of int
   | EChar   of char
   | EId     of string
-  | EFuncCall of string * func_args list
+  | EFuncCall of string * expr list
   | EBinOp  of bop * expr * expr
   | EUnOp   of uop * expr
 
-type bool_expr =
-  | ELbop   of lbop * bool_expr * bool_expr
-  | ELuop   of luop * bool_expr
+and cond =
+  | ELbop   of lbop * cond * cond
+  | ELuop   of luop * cond
   | EComp   of comp * expr * expr
 
-type stmt =
-  | EAss    of string * expr
-  | EIf     of bool_expr * stmt
-  | EIfElse of bool_expr * stmt * stmt
+and stmt =
+  | EEmpty
+  | EBlock  of block
+  | ECallFunc of string * expr list
+  | EAss    of lvalue * expr
+  | EIf     of cond * stmt
+  | EIfElse of cond * stmt * stmt
+  | EWhile  of cond * stmt
+  | ERet
+  | ERetVal of expr
 
 (* Currently no support for nested blocks *)
-type block =
+and block =
   | EListStmt of stmt list
 
-
-
-type decl_list =
+and decl_list =
   | EListDecl of func_args list
 
-type func =
+and func =
   | EFun    of decl_list * block
+
+(* ------------------------------------------------- *)
 
 let pprint_bop = function
   | BopAdd -> "+"
@@ -52,21 +62,72 @@ let pprint_bop = function
   | BopDiv -> "DIV"
   | BopMod -> "MOD"
 
+let pprint_comp = function
+| CompEq    -> "="
+| CompNeq   -> "#"
+| CompGr    -> ">"
+| CompLs    -> "<"
+| CompGrEq  -> ">="
+| CompLsEq  -> "<="
+
+let pprint_lbop = function
+  | LbopAnd -> "AND"
+  | LbopOr -> "OR"
+
 let pprint_uop = function
   | UnopMinus -> "-"
 
+let pprint_luop = function
+  | LuopNot -> "NOT"
+
+
 let rec print_args = function
   | [] -> sprintf ""
-  | EArgInt(i)::t -> sprintf "EInt(%d)," i ^ print_args t
+  | EArgInt(i)::t  -> sprintf "EInt(%d)," i ^ print_args t
   | EArgChar(c)::t -> sprintf "EChar(%c)," c ^ print_args t
   | EArgId(s)::t   -> sprintf "EId(%s)," s ^ print_args t
 
-let rec pprint_expr = function
+and print_mul_expr = function
+  | [] -> sprintf ""
+  | h::[] -> pprint_expr h
+  | h::t  -> pprint_expr h ^ "," ^ print_mul_expr t
+
+and pprint_expr = function
   | EBinOp(bop, e1, e2) ->
     "EBinOp(" ^ pprint_bop bop ^ ", " ^ pprint_expr e1 ^ ", " ^ pprint_expr e2 ^ ")"
   | EUnOp(uop, e) ->
     "EUnOp(" ^ pprint_uop uop ^ ", " ^ pprint_expr e ^ ")"
-  | EFuncCall(name, lst) -> sprintf "EFuncCall(%s, [%s])" name (print_args lst)
+  | EFuncCall(name, lst) -> sprintf "EFuncCall(%s, [%s])" name (print_mul_expr lst)
+  | ELVal(l) -> "ELVal(" ^ pprint_lval l ^ ")"
   | EInt(i)  -> sprintf "EInt(%d)" i
   | EChar(c) -> sprintf "EChar(%c)" c
   | EId(s)   -> sprintf "EId(%s)" s
+
+and pprint_lval = function
+  | EAssId(id)      -> sprintf "EAssId(%s)" id
+  | EAssString(str) -> sprintf "EAssString(%s)" str
+  | EAssArrEl(l,e)  -> "EAssArrEl(" ^pprint_lval l ^ "," ^ pprint_expr e ^ ")"
+
+and pprint_cond = function
+| ELbop(op,c1,c2)   -> "ELbop("^ pprint_lbop op ^","^ pprint_cond c1 ^","^ pprint_cond c2 ^")"
+| ELuop(op,c)       -> pprint_luop op ^ "("^ pprint_cond c ^")"
+| EComp(op,e1,e2)   -> "EComp("^ pprint_comp op ^","^ pprint_expr e1 ^","^ pprint_expr e2 ^")"
+
+and pprint_stmt = function
+| EEmpty              -> ";"
+| EBlock(block)       -> "\n" ^ pprint_block block ^ "\n"
+| ECallFunc(name, lst) -> sprintf "ECallFunc(%s, [%s])" name (print_mul_expr lst) ^ ";"
+| EAss(l,e)           -> "EAss("^ pprint_lval l ^","^ pprint_expr e ^");"
+| EIf(c,s)            -> "If("^ pprint_cond c ^ "," ^ pprint_stmt s ^");"
+| EIfElse(c,s1,s2)    -> "IfElse("^ pprint_cond c ^ "," ^ pprint_stmt s1 ^ "," ^ pprint_stmt s2 ^");"
+| EWhile(c,s)         -> "While("^ pprint_cond c ^ "," ^ pprint_stmt s ^");"
+| ERet                -> "RET;"
+| ERetVal(e)          -> "RET(" ^ pprint_expr e ^ ");"
+
+and pprint_stmt_list = function
+  | [] -> ""
+  | h::[] -> pprint_stmt h
+  | h::t  -> pprint_stmt h ^ pprint_stmt_list t
+
+and pprint_block = function
+  | EListStmt(list) -> "{\n" ^ pprint_stmt_list list ^ "\n}"
