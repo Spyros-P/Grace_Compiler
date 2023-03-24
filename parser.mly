@@ -1,6 +1,25 @@
 %{
     open Ast
     open Printf
+
+    exception MyException of string
+
+    let variable_table = Hashtbl.create 0
+    let function_table = Hashtbl.create 0
+
+    let rec add_var x = Hashtbl.add variable_table (x ()) 0
+
+    let my_print= function
+        | h::[] -> print_int (h ()); print_newline ()
+        | _ -> raise(MyException "oops")
+
+    let replace_or_raise my_hash_table key value =
+    if Hashtbl.mem my_hash_table key then
+        Hashtbl.replace my_hash_table key value
+    else
+        raise (MyException "Key not found in hash table")
+
+    let ret = ref 0
 %}
 
 %token <string> ID
@@ -49,21 +68,31 @@
 %nonassoc ELSE
 
 %start program
-%type <block> program
-%type <expr> expr
-%type <lvalue> l_value
-%type <expr> func_call
-%type <expr list> fun_args
-%type <stmt list> stmt_star
-%type <block> block
-%type <cond> cond
+%type <(unit -> unit)> program
+%type <(unit -> int)> expr
+%type <(unit -> string)> l_value
+%type <(unit -> unit)> func_call
+%type <(unit -> unit)> stmt_star
+%type <(unit -> unit)> block
+%type <(unit -> bool)> cond
+
+%type <(unit -> unit)> var_def
+%type <(unit -> unit) list> var_def_star
+
+%type <(unit -> string) list> comma_id_star
+%type <(unit -> int) list> fun_args
 
 %%
 
 /*                                                        ALIGN             */
 /*                                                          |               */
 program:/*                                                  V               */
-    | f=block EOF                                        { f }
+    | d=var_def_star f=block EOF                            { fun _ -> List.iter (fun x -> x ()) d; f () }
+    ;
+
+var_def_star:
+    | v=var_def d=var_def_star                              { v::d }
+    | /* nothing */                                         { [] }
     ;
 
 func_def:
@@ -98,8 +127,8 @@ fpar_def:
 
 /* >>> Help */
 comma_id_star:
-    | comma_id_star "," ID                                  {}
-    | /* nothing */                                         {}
+    | list=comma_id_star "," id=ID                          { (fun _ -> id)::list }
+    | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
@@ -141,34 +170,34 @@ func_decl:
     ;
 
 var_def:
-    | VAR ID comma_id_star ":" ttype ";"                    {}
+    | VAR id=ID lst=comma_id_star ":" tp=ttype ";"          { fun _ -> List.iter add_var ((fun _ -> id)::lst) }
     ;
 
 stmt:
-    | ";"                                                   { EEmpty }
-    | l=l_value "<-" e=expr ";"                             { EAss(l,e) }
-    | b=block                                               { EBlock(b) }
-    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) }
-    | IF c=cond THEN s=stmt                                 { EIf(c,s) }
-    | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2) }
-    | WHILE c=cond DO s=stmt                                { EWhile(c,s) }
-    | RETURN ";"                                            { ERet }
-    | RETURN e=expr ";"                                     { ERetVal(e) }
+    | ";"                                                   { fun _ -> () }
+    | l=l_value "<-" e=expr ";"                             { fun _ -> replace_or_raise variable_table (l ()) (e ()) }
+    | b=block                                               { b }
+    | call=func_call ";"                                    { fun _ -> call () }
+    | IF c=cond THEN s=stmt                                 { fun _ -> if c () then s () else () }
+    | IF c=cond THEN s1=stmt ELSE s2=stmt                   { fun _ -> if c () then s1 () else s2 () }
+    | WHILE c=cond DO s=stmt                                { fun _ -> while c () do s () done }
+    | RETURN ";"                                            { fun _ -> ret := 0 }
+    | RETURN e=expr ";"                                     { fun _ -> ret := e () }
     ;
 
 block:
-    | "{" list=stmt_star "}"                                { EListStmt(list) }
+    | "{" list=stmt_star "}"                                { list }
     ;
 
 /* >>> Help */
 stmt_star:
-    | st=stmt list=stmt_star                                { st::list }
-    | /* nothing */                                         { [] }
+    | st=stmt list=stmt_star                                { fun _ -> st (); list () }
+    | /* nothing */                                         { fun _ -> () }
     ;
 /* <<< Help */
 
 func_call:
-    | id=ID "(" arg=fun_args ")"                            { EFuncCall(id,arg) }
+    | id=ID "(" arg=fun_args ")"                            { fun _ -> match id with "writeInteger" -> my_print arg | _ -> let f = Hashtbl.find function_table id in f arg }
     ;
 
 /* >>> Help */
@@ -180,35 +209,35 @@ fun_args:
 /* <<< Help */
 
 l_value:
-    | id=ID                                                 { EAssId(id) }
-    | s=STRING                                              { EAssString(s) }
-    | l=l_value "[" e=expr "]"                              { EAssArrEl(l,e) }
+    | id=ID                                                 { fun _ -> id }
+    /*| s=STRING                                              { EAssString(s) }
+    | l=l_value "[" e=expr "]"                              { EAssArrEl(l,e) }*/
     ;
 
 expr:
-    | i=INTEGER                                             { EInt(i) }
-    | c=CHARACTER                                           { EChar(c) }
-    | l=l_value                                             { ELVal(l) }
+    | i=INTEGER                                             { fun _ -> i }
+    /*| c=CHARACTER                                           { fun _ = i }*/
+    | l=l_value                                             { fun _ -> Hashtbl.find variable_table (l ()) }
     | "(" e=expr ")"                                        { e }
-    | f=func_call                                           { f }
+    | f=func_call                                           { fun _ -> f (); !ret }
     | "+" e=expr                                            { e }
-    | "-" e=expr                                            { EUnOp(UnopMinus,e) }
-    | e1=expr "+" e2=expr                                   { EBinOp(BopAdd,e1,e2) }
-    | e1=expr "-" e2=expr                                   { EBinOp(BopSub,e1,e2) }
-    | e1=expr "*" e2=expr                                   { EBinOp(BopMul,e1,e2) }
-    | e1=expr DIV e2=expr                                   { EBinOp(BopDiv,e1,e2) }
-    | e1=expr MOD e2=expr                                   { EBinOp(BopMod,e1,e2) }
+    | "-" e=expr                                            { fun _ -> - e () }
+    | e1=expr "+" e2=expr                                   { fun _ -> e1 () + e2 () }
+    | e1=expr "-" e2=expr                                   { fun _ -> e1 () - e2 () }
+    | e1=expr "*" e2=expr                                   { fun _ -> e1 () * e2 () }
+    | e1=expr DIV e2=expr                                   { fun _ -> e1 () / e2 () }
+    | e1=expr MOD e2=expr                                   { fun _ -> e1 () mod e2 () }
     ;
 
 cond:
-    | "(" c=cond ")"                                        { c }
-    | NOT c=cond                                            { ELuop(LuopNot,c) }
-    | c1=cond AND c2=cond                                   { ELbop(LbopAnd,c1,c2) }
-    | c1=cond OR c2=cond                                    { ELbop(LbopOr,c1,c2) }
-    | e1=expr "=" e2=expr                                   { EComp(CompEq,e1,e2) }
-    | e1=expr "#" e2=expr                                   { EComp(CompNeq,e1,e2) }
-    | e1=expr "<" e2=expr                                   { EComp(CompLs,e1,e2) }
-    | e1=expr ">" e2=expr                                   { EComp(CompGr,e1,e2) }
-    | e1=expr "<=" e2=expr                                  { EComp(CompLsEq,e1,e2) }
-    | e1=expr ">=" e2=expr                                  { EComp(CompGrEq,e1,e2) }
+    | "(" c=cond ")"                                        { fun _ -> c () }
+    | NOT c=cond                                            { fun _ -> not (c ()) }
+    | c1=cond AND c2=cond                                   { fun _ -> c1 () || c2 () }
+    | c1=cond OR c2=cond                                    { fun _ -> c1 () && c2 () }
+    | e1=expr "=" e2=expr                                   { fun _ -> e1 () = e2 () }
+    | e1=expr "#" e2=expr                                   { fun _ -> e1 () != e2 () }
+    | e1=expr "<" e2=expr                                   { fun _ -> e1 () < e2 () }
+    | e1=expr ">" e2=expr                                   { fun _ -> e1 () > e2 () }
+    | e1=expr "<=" e2=expr                                  { fun _ -> e1 () <= e2 () }
+    | e1=expr ">=" e2=expr                                  { fun _ -> e1 () >= e2 () }
     ;
