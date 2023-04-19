@@ -15,8 +15,8 @@ let main =
           fprintf stderr "Parse error at line %d.\n"
             lexbuf.lex_curr_p.pos_lnum;
           exit 1
-  in printf "%s\n" (pprint_block res)
-  (*
+  in printf "OK!\n"
+  (* (pprint_block res)
   if res=1 then Printf.printf "Success\n"
   else Printf.printf "Fail\n"
 *)

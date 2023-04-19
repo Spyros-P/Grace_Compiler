@@ -6,12 +6,11 @@ and lbop = LbopAnd | LbopOr
 and luop = LuopNot
 and comp = CompEq | CompNeq | CompGr | CompLs | CompGrEq | CompLsEq
 
-and types = EInteger | ECharacter | EString | EIntList | ECharList
-
-and func_args =
-  | EArgId     of string
-  | EArgInt    of int
-  | EArgChar   of char
+and types =
+  | EInteger    of int list
+  | ECharacter  of int list
+  | EString
+  | ENothing
 
 and lvalue =
   | EAssId     of string
@@ -33,7 +32,7 @@ and cond =
   | EComp   of comp * expr * expr
 
 and stmt =
-  | EEmpty
+(*| EEmpty *)
   | EBlock  of block
   | ECallFunc of string * expr list
   | EAss    of lvalue * expr
@@ -43,17 +42,57 @@ and stmt =
   | ERet
   | ERetVal of expr
 
-(* Currently no support for nested blocks *)
 and block =
-  | EListStmt of stmt list
+  | EListBlock  of block list
+  | EListStmt   of stmt list
 
-and decl_list =
-  | EListDecl of func_args list
+and local_def =
+  | EFuncDef  of func
+  | EFuncDecl of func_decl
+  | EVarDef   of var
 
-and func =
-  | EFun    of decl_list * block
+and var = {
+  id: string;
+  atype: types;
+  dim: int;
+  size: int list;
+}
+
+and func_args =
+{
+  id    : string;
+  atype : types;
+  dim   : int;
+  size  : int list;   (** empty bracket will represented by integer -1 *)
+  ref   : bool;
+}
+
+and func_decl = {
+  id          : string;
+  args        : func_args list;
+  ret         : types;
+}
+
+and func = {
+  id          : string;
+  args        : func_args list;
+  local_defs  : local_def list;
+  body        : block;
+  ret         : types;
+}
+
+
 
 (* ------------------------------------------------- *)
+
+
+
+
+
+
+(* ------------------------------------------------- *)
+
+
 
 let pprint_bop = function
   | BopAdd -> "+"

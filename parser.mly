@@ -49,13 +49,29 @@
 %nonassoc ELSE
 
 %start program
-%type <block> program
-%type <expr> expr
-%type <lvalue> l_value
+%type <func> program
+%type <func> func_def
+%type <local_def list> local_def_star
+%type <func> header
+%type <func_args list> fparams_def
+%type <func_args list> semic_fpar_def_star
+%type <func_args list> fpar_def
+%type <string list> comma_id_star
+%type <expr> data_type                  /* check */
+%type <types> ttype                     /* check */
+%type <int list> brack_integer_star     /* check */
+%type <types> ret_type                  /* check */
+%type <types> fpar_type                 /* check */
+%type <local_def> local_def
+%type <func_decl> func_decl
+%type <list var> var_def
+%type <stmt> stmt
+%type <block> block
+%type <stmt list> stmt_star
 %type <expr> func_call
 %type <expr list> fun_args
-%type <stmt list> stmt_star
-%type <block> block
+%type <lvalue> l_value
+%type <expr> expr
 %type <cond> cond
 
 %%
@@ -63,85 +79,85 @@
 /*                                                        ALIGN             */
 /*                                                          |               */
 program:/*                                                  V               */
-    | f=block EOF                                        { f }
+    | f=func_def EOF                                        { f }
     ;
 
 func_def:
-    | header local_def_star block                           {}
+    | h=header l_def=local_def_star b=block                 { { h with local_defs = l_def; block = b } }
     ;
 
 local_def_star:
-    | local_def_star local_def                              {}
-    | /* nothing */                                         {}
+    | l=local_def lst=local_def_star                        { l::lst }
+    | /* nothing */                                         { [] }
     ;
 
 header:
-    | FUN ID "(" fparams_def ")" ":" ret_type               {}
-    | FUN ID "(" ")" ":" ret_type                           {}
+    | FUN id=ID "(" p=fparams_def ")" ":" r=ret_type        { { id: id; args: p; local_defs: []; body: []; ret: r} }
+    | FUN id=ID "(" ")" ":" r=ret_type                      { { id: id; args: []; local_defs: []; body: []; ret: r} }
     ;
 
 /* >>> Help */
 fparams_def:
-    | fpar_def semic_fpar_def_star                          {}
+    | lst1=fpar_def lst2=semic_fpar_def_star                { List.append lst1 lst2 }
     ;
 
 semic_fpar_def_star:
-    | semic_fpar_def_star ";" fpar_def                      {}
-    | /* nothing */                                         {}
+    | lst1=semic_fpar_def_star ";" lst2=fpar_def            { List.append lst1 lst2 }
+    | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
 fpar_def:
-    | REF ID comma_id_star ":" fpar_type                    {}
-    | ID comma_id_star ":" fpar_type                        {}
+    | REF id=ID ids=comma_id_star ":" t=fpar_type           { List.map (fun name -> {id : name; atype : ENone; dim : 0; size : [] ; ref : true }) id::ids }
+    | id=ID ids=comma_id_star ":" t=fpar_type               { List.map (fun name -> {id : name; atype : ENone; dim : 0; size : [] ; ref : false }) id::ids }
     ;
 
 /* >>> Help */
 comma_id_star:
-    | comma_id_star "," ID                                  {}
-    | /* nothing */                                         {}
+    | lst=comma_id_star "," id=ID                           { id::lst }
+    | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
 data_type:
-    | INT                                                   {}
-    | CHAR                                                  {}
+    | INT                                                   { EInteger([]) }
+    | CHAR                                                  { ECharacter([]) }
     ;
 
 ttype:
-    | data_type brack_integer_star                          {}
+    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> failwith "Error ttype" }
     ;
 
 /* >>> Help */
 brack_integer_star:
-    | brack_integer_star "[" INTEGER "]"                    {}
-    | /* nothing */                                         {}
+    | "[" i=INTEGER "]" lst=brack_integer_star              { i::lst }
+    | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
 ret_type:
-    | data_type                                             {}
-    | NOTHING                                               {}
+    | d=data_type                                           { d }
+    | NOTHING                                               { ENothing }
     ;
 
 fpar_type:
-    | data_type brack_integer_star                          {}
-    | data_type "[" "]" brack_integer_star                  {}
+    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> failwith "Error fpar_type" }
+    | d=data_type "[" "]" lst=brack_integer_star            { match d with EInteger([]) -> EInteger(-1::lst) | ECharacter([]) -> ECharacter(-1::lst) | _ -> failwith "Error fpar_type" }
     ;
 
 
 local_def:
-    | func_def                                              {}
-    | func_decl                                             {}
-    | var_def                                               {}
+    | f=func_def                                            { EFuncDef(f) }
+    | f=func_decl                                           { EFuncDecl(f) }
+    | v=var_def                                             { EVarDef(v) }
     ;
 
 func_decl:
-    | header ";"                                            {}
+    | h=header ";"                                          { h }
     ;
 
 var_def:
-    | VAR ID comma_id_star ":" ttype ";"                    {}
+    | VAR id=ID ids=comma_id_star ":" t=ttype ";"           { List.map (fun name -> {id : name; atype : ENothing; dim : 0; size : [] }) id::ids }
     ;
 
 stmt:
