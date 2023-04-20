@@ -3,7 +3,7 @@ open Ast
 
 let main =
   let lexbuf = Lexing.from_channel stdin in
-  let res =
+  let main_func =
       try
         Parser.program Lexer.lexer lexbuf
       with
@@ -15,7 +15,7 @@ let main =
           fprintf stderr "Parse error at line %d.\n"
             lexbuf.lex_curr_p.pos_lnum;
           exit 1
-  in printf "OK!\n"
+  in check_func_everything main_func main_func.args main_func.local_defs []; printf "OK!\n"
   (* (pprint_block res)
   if res=1 then Printf.printf "Success\n"
   else Printf.printf "Fail\n"

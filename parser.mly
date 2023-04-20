@@ -52,19 +52,19 @@
 %type <func> program
 %type <func> func_def
 %type <local_def list> local_def_star
-%type <func> header
+%type <func_decl> header
 %type <func_args list> fparams_def
 %type <func_args list> semic_fpar_def_star
 %type <func_args list> fpar_def
 %type <string list> comma_id_star
-%type <expr> data_type                  /* check */
+%type <types> data_type                 /* check */
 %type <types> ttype                     /* check */
 %type <int list> brack_integer_star     /* check */
 %type <types> ret_type                  /* check */
 %type <types> fpar_type                 /* check */
-%type <local_def> local_def
+%type <local_def list> local_def
 %type <func_decl> func_decl
-%type <list var> var_def
+%type <var list> var_def
 %type <stmt> stmt
 %type <block> block
 %type <stmt list> stmt_star
@@ -83,17 +83,17 @@ program:/*                                                  V               */
     ;
 
 func_def:
-    | h=header l_def=local_def_star b=block                 { { h with local_defs = l_def; block = b } }
+    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret } }
     ;
 
 local_def_star:
-    | l=local_def lst=local_def_star                        { l::lst }
+    | l=local_def lst=local_def_star                        { List.append l lst }
     | /* nothing */                                         { [] }
     ;
 
 header:
-    | FUN id=ID "(" p=fparams_def ")" ":" r=ret_type        { { id: id; args: p; local_defs: []; body: []; ret: r} }
-    | FUN id=ID "(" ")" ":" r=ret_type                      { { id: id; args: []; local_defs: []; body: []; ret: r} }
+    | FUN id=ID "(" p=fparams_def ")" ":" r=ret_type        { { id = id; args = p; ret = r} }
+    | FUN id=ID "(" ")" ":" r=ret_type                      { { id = id; args = []; ret = r} }
     ;
 
 /* >>> Help */
@@ -108,8 +108,8 @@ semic_fpar_def_star:
 /* <<< Help */
 
 fpar_def:
-    | REF id=ID ids=comma_id_star ":" t=fpar_type           { List.map (fun name -> {id : name; atype : ENone; dim : 0; size : [] ; ref : true }) id::ids }
-    | id=ID ids=comma_id_star ":" t=fpar_type               { List.map (fun name -> {id : name; atype : ENone; dim : 0; size : [] ; ref : false }) id::ids }
+    | REF id=ID ids=comma_id_star ":" t=fpar_type           { List.map (fun name -> {id = name; atype = t; ref = true  }) (id::ids) }
+    | id=ID ids=comma_id_star ":" t=fpar_type               { List.map (fun name -> {id = name; atype = t; ref = false }) (id::ids) }
     ;
 
 /* >>> Help */
@@ -141,15 +141,14 @@ ret_type:
     ;
 
 fpar_type:
-    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> failwith "Error fpar_type" }
+    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst)     | ECharacter([]) -> ECharacter(lst)     | _ -> failwith "Error fpar_type" }
     | d=data_type "[" "]" lst=brack_integer_star            { match d with EInteger([]) -> EInteger(-1::lst) | ECharacter([]) -> ECharacter(-1::lst) | _ -> failwith "Error fpar_type" }
     ;
 
-
 local_def:
-    | f=func_def                                            { EFuncDef(f) }
-    | f=func_decl                                           { EFuncDecl(f) }
-    | v=var_def                                             { EVarDef(v) }
+    | f=func_def                                            { EFuncDef(f)::[] }
+    | f=func_decl                                           { EFuncDecl(f)::[] }
+    | v=var_def                                             { List.map (fun n -> EVarDef(n)) v }
     ;
 
 func_decl:
@@ -157,14 +156,14 @@ func_decl:
     ;
 
 var_def:
-    | VAR id=ID ids=comma_id_star ":" t=ttype ";"           { List.map (fun name -> {id : name; atype : ENothing; dim : 0; size : [] }) id::ids }
+    | VAR id=ID ids=comma_id_star ":" t=ttype ";"           { List.map (fun name -> {id = name; atype = t }) (id::ids) }
     ;
 
 stmt:
     | ";"                                                   { EEmpty }
     | l=l_value "<-" e=expr ";"                             { EAss(l,e) }
     | b=block                                               { EBlock(b) }
-    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) }
+    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) | _ -> failwith "Error stmt" }
     | IF c=cond THEN s=stmt                                 { EIf(c,s) }
     | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2) }
     | WHILE c=cond DO s=stmt                                { EWhile(c,s) }
