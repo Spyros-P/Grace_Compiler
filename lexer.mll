@@ -91,6 +91,6 @@ and lexer = parse
         | c -> CHARACTER(c)
         }
     | '\"'('\\' escape | "\\x" hex hex | [^'\"' '\\' '\n'])*'\"' as str 
-        { STRING(str) } 
+        { STRING(String.sub str 1 (String.length str-2)) }   (* remove leading and lasting double quotes *)
     | eof           { EOF }  (* lastly, eof and error *)
     | _ as chr      { raise (Error chr) }

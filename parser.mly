@@ -41,7 +41,7 @@
 %left OR
 %left AND
 %left NOT
-%nonassoc "=" "#" ">" "<" "<=" ">="
+/*%nonassoc "=" "#" ">" "<" "<=" ">="*/
 %left "+" "-"
 %left "*" DIV MOD
 
