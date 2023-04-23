@@ -94,9 +94,6 @@ let rec types_to_str t =
   | EString         ->  "string"
   | ENothing        ->  "nothing"
 
-and print_types t =
-  print_string (types_to_str t)
-
 let comp_to_str c =
   match c with
   | CompEq    ->  "="
@@ -168,6 +165,12 @@ let equal_types t1 t2 =
   | EString , EString               ->  true
   | ENothing, ENothing              ->  true
   | _ , _                           ->  false
+
+let rec lval_is_string (l:lvalue) =
+  match l with
+  | EAssString(str)   ->  (true,str)
+  | EAssArrEl(lval,e) ->  lval_is_string lval
+  | _                 ->  (false,"")
 
 let rec equal_fun_args (arg1:func_args list) (arg2:func_args list) =
   match arg1, arg2 with
@@ -271,12 +274,15 @@ and check_stmt (f:func) (s:stmt) (lst:local_def list) =
                                 if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> check_expr f n lst) y))
                                 then (match fn.ret with ENothing -> () | _ -> warning "Return value of function \"%s\" is ignored\n" x)
                                 else (error "Function argument types missmatch in fuction call to \"%s\"\n" x; exit 1)
-  | EAss(lval,e)          ->  let
-                                t1=get_lval_type f lval lst and t2=check_expr f e lst
-                              in
-                                if equal_types t1 t2
-                                then ()
-                                else (error "Type missmatching in assignment\n"; printf "\t%s <- %s\n" (types_to_str t1) (types_to_str t2); exit 1)
+  | EAss(lval,e)          ->  (match lval_is_string lval with
+                              | (res,str) ->  if res then (error "Assignment of read-only location '\"%s\"'\n" str; exit 1)
+                                              else (
+                                                let
+                                                  t1=get_lval_type f lval lst and t2=check_expr f e lst
+                                                in
+                                                  if equal_types t1 t2
+                                                  then ()
+                                                  else (error "Type missmatching in assignment\n"; printf "\t%s <- %s\n" (types_to_str t1) (types_to_str t2); exit 1)))
   | EIf(c,stm)            ->  check_cond f c lst; check_stmt f stm lst
   | EIfElse(c,stm1,stm2)  ->  check_cond f c lst; check_stmt f stm1 lst; check_stmt f stm2 lst
   | EWhile(c,stm)         ->  check_cond f c lst; check_stmt f stm lst
