@@ -1,6 +1,7 @@
 %{
     open Ast
     open Printf
+    open Error
 %}
 
 %token <string> ID
@@ -57,11 +58,11 @@
 %type <func_args list> semic_fpar_def_star
 %type <func_args list> fpar_def
 %type <string list> comma_id_star
-%type <types> data_type                 /* check */
-%type <types> ttype                     /* check */
-%type <int list> brack_integer_star     /* check */
-%type <types> ret_type                  /* check */
-%type <types> fpar_type                 /* check */
+%type <types> data_type
+%type <types> ttype
+%type <int list> brack_integer_star
+%type <types> ret_type
+%type <types> fpar_type
 %type <local_def list> local_def
 %type <func_decl> func_decl
 %type <var list> var_def
@@ -125,7 +126,7 @@ data_type:
     ;
 
 ttype:
-    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> failwith "Error ttype" }
+    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> (error "Internal error :(  {error code: ttype in parser}\n"; exit 1) }
     ;
 
 /* >>> Help */
@@ -141,8 +142,8 @@ ret_type:
     ;
 
 fpar_type:
-    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst)     | ECharacter([]) -> ECharacter(lst)     | _ -> failwith "Error fpar_type" }
-    | d=data_type "[" "]" lst=brack_integer_star            { match d with EInteger([]) -> EInteger(-1::lst) | ECharacter([]) -> ECharacter(-1::lst) | _ -> failwith "Error fpar_type" }
+    | d=data_type lst=brack_integer_star                    { match d with EInteger([]) -> EInteger(lst)     | ECharacter([]) -> ECharacter(lst)     | _ -> (error "Internal error :(  {error code: fpar_type in parser}\n"; exit 1) }
+    | d=data_type "[" "]" lst=brack_integer_star            { match d with EInteger([]) -> EInteger(-1::lst) | ECharacter([]) -> ECharacter(-1::lst) | _ -> (error "Internal error :(  {error code: fpar_type in parser}\n"; exit 1) }
     ;
 
 local_def:
@@ -163,7 +164,7 @@ stmt:
     | ";"                                                   { EEmpty }
     | l=l_value "<-" e=expr ";"                             { EAss(l,e) }
     | b=block                                               { EBlock(b) }
-    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) | _ -> failwith "Error stmt" }
+    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
     | IF c=cond THEN s=stmt                                 { EIf(c,s) }
     | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2) }
     | WHILE c=cond DO s=stmt                                { EWhile(c,s) }
