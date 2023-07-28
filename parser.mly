@@ -1,5 +1,6 @@
 %{
     open Ast
+    open Read
     open Printf
     open Error
 %}
@@ -74,6 +75,8 @@
 %type <lvalue> l_value
 %type <expr> expr
 %type <cond> cond
+%type <bool> semicol
+%type <int> line
 
 %%
 
@@ -103,7 +106,7 @@ fparams_def:
     ;
 
 semic_fpar_def_star:
-    | lst1=semic_fpar_def_star ";" lst2=fpar_def            { List.append lst1 lst2 }
+    | lst1=semic_fpar_def_star sem=semicol lst2=fpar_def            { List.append lst1 lst2 }
     | /* nothing */                                         { [] }
     ;
 /* <<< Help */
@@ -153,23 +156,23 @@ local_def:
     ;
 
 func_decl:
-    | h=header ";"                                          { h }
+    | h=header sem=semicol                                          { h }
     ;
 
 var_def:
-    | VAR id=ID ids=comma_id_star ":" t=ttype ";"           { List.map (fun name -> {id = name; atype = t }) (id::ids) }
+    | VAR id=ID ids=comma_id_star ":" t=ttype sem=semicol           { List.map (fun name -> {id = name; atype = t }) (id::ids) }
     ;
 
 stmt:
     | ";"                                                   { EEmpty }
-    | l=l_value "<-" e=expr ";"                             { EAss(l,e) }
+    | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol   { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e) }
     | b=block                                               { EBlock(b) }
-    | call=func_call ";"                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
+    | call=func_call sem=semicol                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
     | IF c=cond THEN s=stmt                                 { EIf(c,s) }
     | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2) }
     | WHILE c=cond DO s=stmt                                { EWhile(c,s) }
-    | RETURN ";"                                            { ERet }
-    | RETURN e=expr ";"                                     { ERetVal(e) }
+    | RETURN sem=semicol                                    { if sem=false then (error "Missing semicolon at line %d\n" !prev_line; print_file_lines filename !prev_line !prev_line; print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5)); ERet }
+    | RETURN e=expr sem=semicol                                     { ERetVal(e) }
     ;
 
 block:
@@ -227,4 +230,14 @@ cond:
     | e1=expr ">" e2=expr                                   { EComp(CompGr,e1,e2) }
     | e1=expr "<=" e2=expr                                  { EComp(CompLsEq,e1,e2) }
     | e1=expr ">=" e2=expr                                  { EComp(CompGrEq,e1,e2) }
+    ;
+
+
+semicol:
+    | /* nothing */                                         { false }
+    | ";"                                                   { true }
+    ;
+
+line:
+    | /* nothing */                                         { !prev_line }
     ;

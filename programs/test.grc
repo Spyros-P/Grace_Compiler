@@ -1,8 +1,20 @@
 fun main() : nothing
 
-    var a : int[10][2];
+    var a : int;
     var x : int;
 
+    fun k() : nothing
+        
+        var a : int;
+
+    {
+        x <- a;
+        return return
+    }
+
 {
-    x <- a[a[2][1]+1][1];
+    x <- a;
+    {
+        x <- 1;
+    }
 }
