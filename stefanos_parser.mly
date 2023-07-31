@@ -1,5 +1,43 @@
 %{
     open Ast
+    (* scopes are implemented by a list. the newest scope
+       is the head of the list and the oldest scope is
+       at the end of the list. Each element of the list will
+       be a symbol table. *)
+    let scopes = []
+
+    (* define a function that adds a new scope to the list. *)
+    let push_scope () = scopes := (Hashtbl.create 10) :: !scopes
+
+    (* define a function that removes the newest scope from the list. *)
+    let pop_scope () = scopes := List.tl !scopes
+    
+    (* define a function that returns the newest scope. *)
+    let current_scope () = List.hd !scopes
+
+    (* define a function that returns the oldest scope. *)
+    let global_scope () = List.hd (List.rev !scopes)
+
+    (* define a function that returns the info of a symbol in the current scope. *)
+    let lookup id =
+        try
+            Hashtbl.find (current_scope ()) id
+        with Not_found -> raise (Failure ("Symbol " ^ id ^ " not found."))
+
+    (* define a function that enters a symbol into the current scope. if the
+       symbol already exists, it raises an appropriate error *)
+    let enter id info =
+        if Hashtbl.mem (current_scope ()) id then
+            raise (Failure ("Symbol " ^ id ^ " already defined."))
+        else
+            Hashtbl.add (current_scope ()) id info
+    
+    (* define a function that enters a symbol into the global scope. if the
+       symbol already exists, it raises an appropriate error *)
+    let remove id =
+        Hashtbl.remove (current_scope ()) id
+
+
 %}
 
 %token <string> ID
@@ -51,19 +89,20 @@
 program:
     | main=func_def EOF                                             {main}
 
-
 func_def:
-    | h=header defs=list(local_def) b=block                                  {}
+    | h=header defs=list(local_def) b=block                         {}
 
+(* the header of a function should be in charge of entering the neccessary
+   function information into the symbol table. *)
 header:
     | FUN id=ID "(" params=separated_list(";", fpar_def) ")" ":" t=ret_type     {}
 
 fpar_def:
-    | REF? separated_nonempty_list(",", ID) ":" t=fpar_type           {}
+    | REF? separated_nonempty_list(",", ID) ":" t=fpar_type         {}
 
 data_type:
-    | INT                                                           {}
-    | CHAR                                                          {}
+    | INT                                                           {EInteger}
+    | CHAR                                                          {ECharacter}
 
 _integer_brackets:
     | "[" INTEGER "]"                                               {(* not sure *)}
@@ -82,9 +121,9 @@ fpar_type:
     | data_type optional(_empty_brackets) list(_integer_brackets)   {}
 
 local_def:
-    | func_def                                                      {}
-    | func_decl                                                     {}
-    | var_def                                                       {}
+    | f=func_def                                                    {}
+    | f=func_decl                                                   {}
+    | v=var_def                                                     {}
 
 func_decl:
     | header ";"                                                    {}
