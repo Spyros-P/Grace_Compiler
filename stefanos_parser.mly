@@ -1,3 +1,7 @@
+%{
+    open Ast
+%}
+
 %token <string> ID
 %token <string> STRING
 %token <int>    INTEGER
@@ -47,31 +51,32 @@
 program:
     | main=func_def EOF                                             {main}
 
+
 func_def:
-    | header list(local_def) block                                  {}
+    | h=header defs=list(local_def) b=block                                  {}
 
 header:
-    | FUN ID "(" separated_list(";", fpar_def) ")" ":" ret_type     {}
+    | FUN id=ID "(" params=separated_list(";", fpar_def) ")" ":" t=ret_type     {}
 
 fpar_def:
-    | REF? separated_nonempty_list(",", ID) ":" fpar_type           {}
+    | REF? separated_nonempty_list(",", ID) ":" t=fpar_type           {}
 
 data_type:
     | INT                                                           {}
     | CHAR                                                          {}
 
 _integer_brackets:
-    | "[" INTEGER "]"                                               {}
+    | "[" INTEGER "]"                                               {(* not sure *)}
 
 _empty_brackets:
-    | "[" "]"                                                       {}
+    | "[" "]"                                                       {(* not sure *)}
 
 type:
-    | data_type list(_integer_brackets)                             {}
+    | data_type list(_integer_brackets)                             {(* not sure *)}
 
 ret_type:
     | data_type                                                     {}
-    | NOTHING                                                       {}
+    | NOTHING                                                       {ENothing}
 
 fpar_type:
     | data_type optional(_empty_brackets) list(_integer_brackets)   {}
@@ -84,52 +89,56 @@ local_def:
 func_decl:
     | header ";"                                                    {}
 
+(* vars is a list of variables. we must enter all of them into the
+   symbol table. in order to do that, we need a symbol table. once we
+   have a symbol table with an enter method, we just map the method
+   to every variable in the list. *)
 var_def:
-    | VAR separated_nonempty_list(",", ID) ":" type ";"             {}
+    | VAR vars=separated_nonempty_list(",", ID) ":" t=type ";"      {(*map an enter method on every element of the list*)}
 
 stmt:
-    | ";"                                                           {}
-    | l_value "<-" expr ";"                                         {}
-    | block                                                         {}
-    | func_call ";"                                                 {}
-    | IF cond THEN stmt                                             {}
-    | IF cond THEN stmt ELSE stmt                                   {}
-    | WHILE cond DO stmt                                            {}
-    | RETURN optional(expr) ";"                                     {}
+    | ";"                                                           {EEmpty}
+    | l=l_value "<-" e=expr ";"                                     {EAssignment(l,e)}
+    | b=block                                                       {EBlock(b)}
+    | f=func_call ";"                                               {EFuncCall(f.id, f.args)}
+    | IF c=cond THEN s=stmt                                         {EIf(c,s)}
+    | IF c=cond THEN s1=stmt ELSE s2=stmt                           {EIfElse(c,s1,s2)}
+    | WHILE c=cond DO s=stmt                                        {EWhile(c,s)}
+    | RETURN e=optional(expr) ";"                                   {EReturn(e)}
 
 block:
-    | "{" list(stmt) "}"                                            {}
+    | "{" statements=list(stmt) "}"                                 {EBlock(statements)}
 
 func_call:
-    | ID "(" separated_list(",", expr) ")"                          {}
+    | id=ID "(" args=separated_list(",", expr) ")"                  {EFuncCall(id,args)}
 
 l_value:
-    | ID                                                            {}
-    | STRING                                                        {}
-    | l_value "[" expr "]"                                          {}
+    | id=ID                                                         {EAssId(id)}
+    | s=STRING                                                      {EAssString(s)}
+    | l=l_value "[" e=expr "]"                                      {EAssArrEl(l,e)}
 
 expr:
-    | INTEGER                                                       {}
-    | CHARACTER                                                     {}
-    | l_value                                                       {}
-    | "(" expr ")"                                                  {}
-    | func_call                                                     {}
-    | "+" expr                                                      {}
-    | "-" expr                                                      {}
-    | expr "+" expr                                                 {}
-    | expr "-" expr                                                 {}
-    | expr "*" expr                                                 {}
-    | expr DIV expr                                                 {}
-    | expr MOD expr                                                 {}
+    | i=INTEGER                                                     {EInt(i)}
+    | c=CHARACTER                                                   {EChar(c)}
+    | l=l_value                                                     {ELval(l)}
+    | "(" e=expr ")"                                                {e}
+    | f=func_call                                                   {f}
+    | "+" e=expr                                                    {e}
+    | "-" e=expr                                                    {EUnOp(UnopMinus,e)}
+    | e1=expr "+" e2=expr                                           {EBinOp(BopAdd,e1,e2)}
+    | e1=expr "-" e2=expr                                           {EBinOp(BopSub,e1,e2)}
+    | e1=expr "*" e2=expr                                           {EBinOp(BopMul,e1,e2)}
+    | e1=expr DIV e2=expr                                           {EBinOp(BopDiv,e1,e2)}
+    | e1=expr MOD e2=expr                                           {EBinOp(BopMod,e1,e2)}
 
 cond:
-    | "(" cond ")"                                                  {}
-    | NOT cond                                                      {}
-    | cond AND cond                                                 {}
-    | cond OR cond                                                  {}
-    | expr EQUAL expr                                               {}
-    | expr NOT_EQUAL expr                                           {}
-    | expr LESS expr                                                {}
-    | expr GREATER expr                                             {}
-    | expr LESS_EQ expr                                             {}
-    | expr GREATER_EQ expr                                          {}
+    | "(" c=cond ")"                                                {c}
+    | NOT c=cond                                                    {ELuop(LuopNot,c)}
+    | c1=cond    AND     c2=cond                                    {ELbop(LbopAnd,c1,c2)}
+    | c1=cond    OR      c2=cond                                    {ELbop(LbopOr,c1,c2)}
+    | e1=expr EQUAL      e2=expr                                    {EComp(CompEq,e1,e2)}
+    | e1=expr NOT_EQUAL  e2=expr                                    {EComp(CompNeq,e1,e2)}
+    | e1=expr LESS       e2=expr                                    {EComp(CompLs,e1,e2)}
+    | e1=expr GREATER    e2=expr                                    {EComp(CompGr,e1,e2)}
+    | e1=expr LESS_EQ    e2=expr                                    {EComp(CompLsEq,e1,e2)}
+    | e1=expr GREATER_EQ e2=expr                                    {Ecomp(CompGrEq,e1,e2)}
