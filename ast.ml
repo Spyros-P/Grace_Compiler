@@ -125,7 +125,7 @@ let check_for_duplicates strings =
     | ""::xs -> aux xs
     | x::xs ->
       if List.mem x xs then
-        (error "Douplicate name definition of \"%s\"\n" x; exit 1)
+        (error "Duplicate name definition of \"%s\"\n" x; exit 1)
       else
         aux xs
   in aux strings
