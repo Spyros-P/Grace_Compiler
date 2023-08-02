@@ -37,6 +37,58 @@
     let remove id =
         Hashtbl.remove (current_scope ()) id
 
+    (* Define a type for the info of an entry in the symbol table. *)
+    (* the name of the type coincides with the name of a symbol
+       of the parser. I'm not sure if this creates a problem or not. *)
+    type data_type = Int | Char | Void
+
+    type entry = {
+        _id:                string;
+        _is_variable:       bool;
+        _is_reference:      bool;
+        _type:              data_type option; (* None if function, Some data_type if a var or ref *)
+        _dimensions:        int list;
+        _is_function:       bool;
+        _parameters:        (string * data_type * bool * int list) list;
+        _return_type:       data_type option; (* None if not a function, Some data_type if a function *)
+        _declaration_line:  int;
+    }
+
+    let make_var id data_type is_reference dimensions declaration_line =
+    {
+        _id                 = id;
+        _is_variable        = true;
+        _is_reference       = is_reference;
+        _type               = data_type;
+        _dimensions         = dimensions;
+        _is_function        = false;
+        _parameters         = [];
+        _return_type        = None;
+        _declaration_line   = declaration_line;
+    }
+
+    let make_fun id return_type parameters declaration_line =
+    {
+        _id                 = id;
+        _is_variable        = false;
+        _is_reference       = false; (* Functions cannot be references *)
+        _type               = None; (* Functions have no type in the variable sense *)
+        _dimensions         = [];
+        _is_function        = true;
+        _parameters         = parameters;
+        _return_type        = Some return_type;
+        _declaration_line   = declaration_line;
+    }
+
+    let int_type = Int
+    let char_type = Char
+
+    let sample_variable_info = make_var "x" int_type false [] 10
+    let sample_function_info = make_fun "add" int_type [("a", int_type, false, []); ("b", int_type, false, [])] 20
+
+    (* I think that we can add many functions that
+       perform checks on the symbol table entries
+       and discover errors. *)
 
 %}
 
@@ -90,7 +142,7 @@ program:
     | main=func_def EOF                                             {main}
 
 func_def:
-    | h=header defs=list(local_def) b=block                         {}
+    | h=header defs=list(local_def) b=block                         {current_scope ()}
 
 (* the header of a function should be in charge of entering the neccessary
    function information into the symbol table. *)
