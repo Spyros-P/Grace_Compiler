@@ -1,7 +1,7 @@
 open Printf
 open Read
 open Error
-open Ast
+open Semantic
 
 let print_ascii_code c =
   let ascii_code = int_of_char c in

@@ -165,10 +165,10 @@ var_def:
     ;
 
 stmt:
-    | ";"                                                   { EEmpty({line_start=0;line_end=0;char_start=0;char_end=0}) }
-    | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol   { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | ";"                                                   { EEmpty({line_start=(!prev_line);line_end=(!prev_line);char_start=0;char_end=0}) }
+    | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol   { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e,{line_start=ln1;line_end=(!prev_line);char_start=0;char_end=0}) }
     | b=block                                               { EBlock(b,{line_start=0;line_end=0;char_start=0;char_end=0}) }
-    | call=func_call ln=line sem=semicol                    { if sem=false then (error "Missing semicolon at line %d\n" ln; print_file_lines filename ln ln; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln/10 + 5)); match call with EFuncCall(id,list,_) -> ECallFunc(id,list,{line_start=0;line_end=0;char_start=0;char_end=0}) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
+    | call=func_call ln=line sem=semicol                    { if sem=false then (error "Missing semicolon at line %d\n" ln; print_file_lines filename ln ln; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln/10 + 5)); match call with EFuncCall(id,list,pos) -> ECallFunc(id,list,pos) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
     | IF c=cond THEN s=stmt                                 { EIf(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     | WHILE c=cond DO s=stmt                                { EWhile(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }
@@ -202,7 +202,7 @@ fun_args:
 l_value:
     | id=ID ln=line                                         { EAssId(id,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
     | s=STRING ln=line                                      { EAssString(s,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
-    | l=l_value "[" e=expr "]"                              { EAssArrEl(l,e,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | l=l_value ln1=line "[" e=expr "]" ln2=line            { EAssArrEl(l,e,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
     ;
 
 expr:
@@ -222,7 +222,7 @@ expr:
 
 cond:
     | "(" c=cond ")"                                        { c }
-    | NOT ln=line c=cond                                    { let pos= get_cond_pos c in ELuop(LuopNot,c,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | NOT ln=line c=cond                                    { let pos= get_cond_pos c in ELuop(LuopNot,c,pos) }
     | c1=cond AND c2=cond                                   { let pos1=get_cond_pos c1 and pos2=get_cond_pos c2 in ELbop(LbopAnd,c1,c2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
     | c1=cond OR c2=cond                                    { let pos1=get_cond_pos c1 and pos2=get_cond_pos c2 in ELbop(LbopOr,c1,c2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
     | e1=expr "=" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompEq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
