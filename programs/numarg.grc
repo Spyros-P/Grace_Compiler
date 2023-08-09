@@ -1,0 +1,9 @@
+fun numarg () : nothing
+   fun test(a, b, c: int) : int
+   {
+      return a + b + c;
+   }
+   var a, b, c, d: int;
+{
+   d <- test(a, b, c, d);
+}

@@ -1,0 +1,10 @@
+fun typemissmatch () : nothing
+   fun test(a, b, c: int) : int
+   {
+      return a + b + c;
+   }
+   var a, b, c : int;
+   var d: char;
+{
+   d <- test(a, b, c);
+}
