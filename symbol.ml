@@ -67,7 +67,7 @@ let lookup id =
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)
 let insert id info =
   if Hashtbl.mem (current_scope ()) id then
-    ()(*error "Duplicate declaration of name %s\n" id*)
+    failwith "insert"
   else
     Hashtbl.add (current_scope ()) id info
 

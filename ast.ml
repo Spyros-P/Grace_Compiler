@@ -55,23 +55,23 @@ and local_def =
   | EVarDef   of var
 
 and var = {
-  id: string;
-  atype: types;
-  pos: position;
+  id    : string;
+  atype : types;
+  pos   : position;
 }
 
 and func_args = {
   id    : string;
   atype : types;
   ref   : bool;
-  pos: position;
+  pos   : position;
 }
 
 and func_decl = {
   id          : string;
   args        : func_args list;
   ret         : types;
-  pos: position;
+  pos         : position;
 }
 
 and func = {
@@ -80,7 +80,7 @@ and func = {
   local_defs  : local_def list;
   body        : block;
   ret         : types;
-  pos: position;
+  pos         : position;
 }
 
 
@@ -140,4 +140,3 @@ let get_cond_pos (c:cond) =
   | ELbop(_,_,_,pos)  -> pos
   | ELuop(_,_,pos)    -> pos
   | EComp(_,_,_,pos)  -> pos
-  

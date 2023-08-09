@@ -119,7 +119,7 @@ fpar_def:
 
 /* >>> Help */
 comma_id_star:
-    | lst=comma_id_star "," id=ID                           { id::lst }
+    | "," id=ID lst=comma_id_star                           { id::lst }
     | /* nothing */                                         { [] }
     ;
 /* <<< Help */
@@ -167,7 +167,7 @@ var_def:
 stmt:
     | ";"                                                   { EEmpty({line_start=(!prev_line);line_end=(!prev_line);char_start=0;char_end=0}) }
     | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol   { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e,{line_start=ln1;line_end=(!prev_line);char_start=0;char_end=0}) }
-    | b=block                                               { EBlock(b,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | b=block                                               { match b with EListStmt(_,pos) -> EBlock(b,pos) }
     | call=func_call ln=line sem=semicol                    { if sem=false then (error "Missing semicolon at line %d\n" ln; print_file_lines filename ln ln; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln/10 + 5)); match call with EFuncCall(id,list,pos) -> ECallFunc(id,list,pos) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
     | IF c=cond THEN s=stmt                                 { EIf(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2,{line_start=0;line_end=0;char_start=0;char_end=0}) }
