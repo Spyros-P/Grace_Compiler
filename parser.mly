@@ -84,10 +84,11 @@
 /*                                                          |               */
 program:/*                                                  V               */
     | f=func_def EOF                                        { f }
+    | EOF                                                   { error "No code found!\n"; exit 1 }
     ;
 
 func_def:
-    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret } }
+    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; pos=h.pos } }
     ;
 
 local_def_star:
@@ -96,8 +97,8 @@ local_def_star:
     ;
 
 header:
-    | FUN id=ID "(" p=fparams_def ")" ":" r=ret_type        { { id = id; args = p; ret = r} }
-    | FUN id=ID "(" ")" ":" r=ret_type                      { { id = id; args = []; ret = r} }
+    | FUN ln1=line id=ID "(" p=fparams_def ")" ":" r=ret_type ln2=line         { { id = id; args = p; ret = r; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
+    | FUN ln1=line id=ID "(" ")" ":" r=ret_type ln2=line                      { { id = id; args = []; ret = r; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
     ;
 
 /* >>> Help */
@@ -106,14 +107,14 @@ fparams_def:
     ;
 
 semic_fpar_def_star:
-    | lst1=semic_fpar_def_star sem=semicol lst2=fpar_def            { List.append lst1 lst2 }
+    | lst1=semic_fpar_def_star ";" lst2=fpar_def    { List.append lst1 lst2 }
     | /* nothing */                                         { [] }
     ;
 /* <<< Help */
 
 fpar_def:
-    | REF id=ID ids=comma_id_star ":" t=fpar_type           { List.map (fun name -> {id = name; atype = t; ref = true  }) (id::ids) }
-    | id=ID ids=comma_id_star ":" t=fpar_type               { List.map (fun name -> {id = name; atype = t; ref = false }) (id::ids) }
+    | REF ln1=line id=ID ids=comma_id_star ":" t=fpar_type ln2=line           { List.map (fun name -> {id = name; atype = t; ref = true;  pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
+    | id=ID ln1=line ids=comma_id_star ":" t=fpar_type ln2=line               { List.map (fun name -> {id = name; atype = t; ref = false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
     ;
 
 /* >>> Help */
@@ -156,27 +157,27 @@ local_def:
     ;
 
 func_decl:
-    | h=header sem=semicol                                          { h }
+    | h=header sem=semicol                          { if sem=false then (error "Missing semicolon at line %d\n" !prev_line; print_file_lines filename !prev_line !prev_line; print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5)); h }
     ;
 
 var_def:
-    | VAR id=ID ids=comma_id_star ":" t=ttype sem=semicol           { List.map (fun name -> {id = name; atype = t }) (id::ids) }
+    | VAR ln1=line id=ID ids=comma_id_star ":" t=ttype ln2=line sem=semicol           { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); List.map (fun name -> {id = name; atype = t; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
     ;
 
 stmt:
-    | ";"                                                   { EEmpty }
-    | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol   { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e) }
-    | b=block                                               { EBlock(b) }
-    | call=func_call sem=semicol                                    { match call with EFuncCall(id,list) -> ECallFunc(id,list) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
-    | IF c=cond THEN s=stmt                                 { EIf(c,s) }
-    | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2) }
-    | WHILE c=cond DO s=stmt                                { EWhile(c,s) }
-    | RETURN sem=semicol                                    { if sem=false then (error "Missing semicolon at line %d\n" !prev_line; print_file_lines filename !prev_line !prev_line; print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5)); ERet }
-    | RETURN e=expr sem=semicol                                     { ERetVal(e) }
+    | ";"                                                   { EEmpty({line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol   { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | b=block                                               { EBlock(b,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | call=func_call ln=line sem=semicol                    { if sem=false then (error "Missing semicolon at line %d\n" ln; print_file_lines filename ln ln; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln/10 + 5)); match call with EFuncCall(id,list,_) -> ECallFunc(id,list,{line_start=0;line_end=0;char_start=0;char_end=0}) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
+    | IF c=cond THEN s=stmt                                 { EIf(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | IF c=cond THEN s1=stmt ELSE s2=stmt                   { EIfElse(c,s1,s2,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | WHILE c=cond DO s=stmt                                { EWhile(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | RETURN sem=semicol                                    { if sem=false then (error "Missing semicolon at line %d\n" !prev_line; print_file_lines filename !prev_line !prev_line; print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5)); ERet({line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | RETURN e=expr sem=semicol                             { if sem=false then (error "Missing semicolon at line %d\n" !prev_line; print_file_lines filename !prev_line !prev_line; print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5)); ERetVal(e,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     ;
 
 block:
-    | "{" list=stmt_star "}"                                { EListStmt(list) }
+    | "{" ln1=line list=stmt_star "}" ln2=line                                { EListStmt(list,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
     ;
 
 /* >>> Help */
@@ -187,7 +188,7 @@ stmt_star:
 /* <<< Help */
 
 func_call:
-    | id=ID "(" arg=fun_args ")"                            { EFuncCall(id,arg) }
+    | id=ID ln1=line "(" arg=fun_args ")" ln2=line          { EFuncCall(id,arg,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
     ;
 
 /* >>> Help */
@@ -199,37 +200,37 @@ fun_args:
 /* <<< Help */
 
 l_value:
-    | id=ID                                                 { EAssId(id) }
-    | s=STRING                                              { EAssString(s) }
-    | l=l_value "[" e=expr "]"                              { EAssArrEl(l,e) }
+    | id=ID ln=line                                         { EAssId(id,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
+    | s=STRING ln=line                                      { EAssString(s,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
+    | l=l_value "[" e=expr "]"                              { EAssArrEl(l,e,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     ;
 
 expr:
-    | i=INTEGER                                             { EInt(i) }
-    | c=CHARACTER                                           { EChar(c) }
-    | l=l_value                                             { ELVal(l) }
+    | i=INTEGER ln=line                                     { EInt(i,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
+    | c=CHARACTER ln=line                                   { EChar(c,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
+    | l=l_value                                             { let pos=get_lval_pos l in ELVal(l,pos) }
     | "(" e=expr ")"                                        { e }
     | f=func_call                                           { f }
-    | "+" e=expr                                            { e }
-    | "-" e=expr                                            { EUnOp(UnopMinus,e) }
-    | e1=expr "+" e2=expr                                   { EBinOp(BopAdd,e1,e2) }
-    | e1=expr "-" e2=expr                                   { EBinOp(BopSub,e1,e2) }
-    | e1=expr "*" e2=expr                                   { EBinOp(BopMul,e1,e2) }
-    | e1=expr DIV e2=expr                                   { EBinOp(BopDiv,e1,e2) }
-    | e1=expr MOD e2=expr                                   { EBinOp(BopMod,e1,e2) }
+    | "+" ln=line e=expr                                    { let pos=get_expr_pos e in EUnOp(UnopPlus,e,{line_start=ln;line_end=pos.line_end;char_start=0;char_end=0}) }
+    | "-" ln=line e=expr                                    { let pos=get_expr_pos e in EUnOp(UnopMinus,e,{line_start=ln;line_end=pos.line_end;char_start=0;char_end=0}) }
+    | e1=expr "+" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EBinOp(BopAdd,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr "-" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EBinOp(BopSub,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr "*" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EBinOp(BopMul,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr DIV e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EBinOp(BopDiv,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr MOD e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EBinOp(BopMod,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
     ;
 
 cond:
     | "(" c=cond ")"                                        { c }
-    | NOT c=cond                                            { ELuop(LuopNot,c) }
-    | c1=cond AND c2=cond                                   { ELbop(LbopAnd,c1,c2) }
-    | c1=cond OR c2=cond                                    { ELbop(LbopOr,c1,c2) }
-    | e1=expr "=" e2=expr                                   { EComp(CompEq,e1,e2) }
-    | e1=expr "#" e2=expr                                   { EComp(CompNeq,e1,e2) }
-    | e1=expr "<" e2=expr                                   { EComp(CompLs,e1,e2) }
-    | e1=expr ">" e2=expr                                   { EComp(CompGr,e1,e2) }
-    | e1=expr "<=" e2=expr                                  { EComp(CompLsEq,e1,e2) }
-    | e1=expr ">=" e2=expr                                  { EComp(CompGrEq,e1,e2) }
+    | NOT ln=line c=cond                                    { let pos= get_cond_pos c in ELuop(LuopNot,c,{line_start=0;line_end=0;char_start=0;char_end=0}) }
+    | c1=cond AND c2=cond                                   { let pos1=get_cond_pos c1 and pos2=get_cond_pos c2 in ELbop(LbopAnd,c1,c2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | c1=cond OR c2=cond                                    { let pos1=get_cond_pos c1 and pos2=get_cond_pos c2 in ELbop(LbopOr,c1,c2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr "=" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompEq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr "#" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompNeq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr "<" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompLs,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr ">" e2=expr                                   { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompGr,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr "<=" e2=expr                                  { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompLsEq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
+    | e1=expr ">=" e2=expr                                  { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompGrEq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
     ;
 
 

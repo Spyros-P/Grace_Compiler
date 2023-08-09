@@ -1,6 +1,15 @@
 open Printf
 open Error
 
+
+type position = {
+  line_start  : int;
+  line_end    : int;
+  char_start  : int;
+  char_end    : int
+}
+
+
 let prev_line = ref 1
 let curr_line = ref 1
 

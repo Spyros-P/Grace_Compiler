@@ -21,6 +21,6 @@ let main =
             lexbuf.lex_curr_p.pos_lnum;
           exit 1
   in
-    syntax_analysis_main main_func;
+    sem_main main_func;
     close_in channel;
     if !errors_detected=false then printf "\027[1;32mSuccessful Compilation!\027[0m\n"
