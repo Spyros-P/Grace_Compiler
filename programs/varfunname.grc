@@ -1,0 +1,9 @@
+fun varfunname(): nothing
+    fun foo(): int
+    {
+        return 5;
+    }
+    var foo: int;
+{
+   foo <- foo();
+}

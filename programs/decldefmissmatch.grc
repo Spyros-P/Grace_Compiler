@@ -1,5 +1,5 @@
-fun decldefmismatch () : nothing
-    fun foo(a, b: int): int
+fun decldefmissmatch () : nothing
+    fun foo(a, b: int): int;
     fun bar(a: int): int
     {
         return a + foo(a, 2);
