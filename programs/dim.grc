@@ -1,0 +1,9 @@
+fun dim () : nothing
+   fun test(a, b, c: int) : int
+   {
+      return a + b + c;
+   }
+   var a, b, c, d: int;
+{
+   d[0] <- test(a, b, c);
+}
