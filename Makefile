@@ -1,61 +1,22 @@
-# Variables
-BUILD_DIR := _build_make
-LEXER_SRC := lexer.mll
-PARSER_SRC := parser.mly
-AST_SRC := ast.ml
-MAIN_SRC := main.ml
-EXECUTABLE := compiler
+.PHONY: default all clean FORCE
 
-# Compiler and flags
-OCAMLC := ocamlc
-OCAMLLEX := ocamllex
-MENHIR := menhir
-CFLAGS := -I $(BUILD_DIR)
+LLVMCONFIG=llvm-config
+LLVMLDFLAGS=-L`$(LLVMCONFIG) --libdir`
+LLVMPACKAGES=llvm #,llvm.analysis,llvm.all_backends,llvm.scalar_opts
 
-# Rules
-.PHONY: all clean _all _clean
+OCAMLBUILD=ocamlbuild
+OCAMLBUILDFLAGS=-use-menhir -pkgs $(LLVMPACKAGES) #-lflags -cclib,$(LLVMLDFLAGS)
 
-build:
-	@rm -f *.cmi
-	@rm -f *.mli
-	ocamlbuild -use-menhir main.native
-	@cp _build/*.cmi .
-	@cp _build/*.mli .
+default: main.native
+
+main.native: FORCE
+	@$(RM) *.cmi *.mli
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) $@
+	@cp _build/*.cmi _build/*.mli .
+	@cp ~/.opam/default/lib/llvm/llvm.cmi .
 
 clean:
-	rm -f *.cmi
-	rm -f *.mli
-
-# beta version
-_all: $(EXECUTABLE)
-
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-
-$(BUILD_DIR)/lexer.ml: $(LEXER_SRC) | $(BUILD_DIR)
-	$(OCAMLLEX) $< -o $@
-
-$(BUILD_DIR)/parser.ml $(BUILD_DIR)/parser.mli: $(PARSER_SRC) | $(BUILD_DIR)
-	$(MENHIR) --base _build_make/parser $<
-
-$(BUILD_DIR)/ast.cmo: ast.ml $(BUILD_DIR)/parser.mli | $(BUILD_DIR)
-	$(OCAMLC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/parser.cmi: $(BUILD_DIR)/parser.mli $(BUILD_DIR)/ast.cmo | $(BUILD_DIR)
-	$(OCAMLC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/parser.cmo: $(BUILD_DIR)/parser.ml $(BUILD_DIR)/parser.cmi | $(BUILD_DIR)
-	$(OCAMLC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/lexer.cmo: $(BUILD_DIR)/lexer.ml $(BUILD_DIR)/parser.cmi | $(BUILD_DIR)
-	$(OCAMLC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/main.cmo: main.ml | $(BUILD_DIR)
-	$(OCAMLC) $(CFLAGS) -c $< -o $@
-
-$(EXECUTABLE): $(BUILD_DIR)/ast.cmo $(BUILD_DIR)/lexer.cmo $(BUILD_DIR)/parser.cmo $(BUILD_DIR)/main.cmo
-	$(OCAMLC) $(CFLAGS) -o $@ $^
-
-# beta version
-_clean:
-	rm -rf $(BUILD_DIR) $(EXECUTABLE)
+	$(OCAMLBUILD) -clean
+	$(RM) a.ll a.s a.out
+	$(RM) *~ 
+	$(RM) *.cmi *.mli
