@@ -1,0 +1,9 @@
+fun main() : nothing
+
+    var x : int;
+
+    fun foo (x : int; x : int) : nothing;
+
+{
+    x <- 1;
+}

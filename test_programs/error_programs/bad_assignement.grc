@@ -1,0 +1,13 @@
+$$
+    This program should fail because grace does not
+    support assignment between arrays
+$$
+
+fun main() : nothing
+
+    var x : int[10];
+    var y : int[10];
+
+{
+    x <- y;
+}

@@ -16,6 +16,12 @@ let curr_fun : func_decl list ref = ref []
 let fun_def2decl (f:func) =
   { id = f.id; args = f.args; ret = f.ret; pos=f.pos }
 
+let sem_closing_scope () =
+  let find_decl _ entr =
+    match entr with
+    | Efundecl(x, _) -> error "Function \"%s\" declared but was never defined\n" x.id; print_file_lines filename x.pos.line_start x.pos.line_end
+    | _ -> ()
+  in Hashtbl.iter find_decl (current_scope ())
 
 let used id =
   match lookup id with
@@ -28,13 +34,16 @@ let used id =
 let symbol_add_arg (arg:func_args) =
   (match lookup_head arg.id with
   | None -> ()
-  | Some(Efuncdef(x,_)) -> error "Name conflict: function \"%s\" and function argument \"%s\"\n" x.id x.id;
-                           printf "Function definition:\n";
-                           print_file_lines filename x.pos.line_start x.pos.line_end;
-                           printf "\nArgument definition:\n";
-                           print_file_lines filename arg.pos.line_start arg.pos.line_end;
-                           exit 1
-  | _   -> failwith "symbol_add_arg");
+  | Some(Efuncdef(x,_)) ->  error "Name conflict: function \"%s\" and function argument \"%s\"\n" x.id x.id;
+                            printf "Function definition:\n";
+                            print_file_lines filename x.pos.line_start x.pos.line_end;
+                            printf "\nArgument definition:\n";
+                            print_file_lines filename arg.pos.line_start arg.pos.line_end;
+                            exit 1
+  | Some(Evar(x,_,_))   ->  error "Two function arguments have the same name \"%s\", in function \"%s\"\n" x.id (List.hd !curr_fun).id;
+                            print_file_lines filename (List.hd !curr_fun).pos.line_start (List.hd !curr_fun).pos.line_end;
+                            exit 1
+  | _ -> failwith "symbol_add_arg");
   insert arg.id (Evar({id=arg.id;atype=arg.atype;pos=arg.pos}, ref false, ref false))
 
 
@@ -316,6 +325,7 @@ and sem_fun (f:func) =
   List.iter symbol_add_def f.local_defs;
   sem_block f.body;
   (* TODO: check for unused variables etc before closing scope and display warning messages *)
+  sem_closing_scope ();
   close_scope ();
   curr_fun := List.tl !curr_fun
 

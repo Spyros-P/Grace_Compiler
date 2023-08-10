@@ -17,8 +17,9 @@ let main =
             lexbuf.lex_curr_p.pos_lnum c (print_ascii_code c);
           exit 1
       | Parser.Error ->
-          fprintf stderr "Parse error at line %d.\n"
-            lexbuf.lex_curr_p.pos_lnum;
+          error "Parse error at line %d.\n" lexbuf.lex_curr_p.pos_lnum;
+            print_file_lines filename !prev_line !prev_line;
+            print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5);
           exit 1
   in
     sem_main main_func;
