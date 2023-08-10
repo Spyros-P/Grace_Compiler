@@ -1,0 +1,9 @@
+fun paramexprtype3 () : nothing
+   fun test(a, b, c: int) : int
+   {
+      return a + b + c;
+   }
+   var a, b, c, d: int;
+{
+   d <- test(test(a, b, c), a + b + c, 'c' + 5);
+}

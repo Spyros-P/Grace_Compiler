@@ -1,0 +1,17 @@
+fun nestedscopes () : nothing
+   fun foo (a: int): int
+    fun bar (b: int): int
+    {
+        return 5;
+    }
+    {
+        return bar (a);
+    }
+   fun bar(a: int): int
+   {
+        return 6;
+   }
+   var a: int;
+{
+    a <- foo(a) + bar(a);
+}
