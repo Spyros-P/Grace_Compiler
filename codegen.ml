@@ -45,7 +45,7 @@ let rec codegen_stmt info statement =
   | EEmpty(_)                      -> ((*do nothing*))
   | EBlock(stmts, _)               -> codegen_block     info stmts
   | ECallFunc(fn, params, _)       -> codegen_func_call info fn params  (* not implemented yet *)
-  | EAss(lval, expr, _)            -> codegen_ass       info lval expr
+  | EAss(lval, expr, _)            -> codegen_ass       info lval expr  (* not implemented yet *)
   | EIf(cond, stmt, _)             -> codegen_if        info cond stmt
   | EIfElse(cond, stmt1, stmt2, _) -> codegen_ifelse    info cond stmt1 stmt2
   | EWhile(cond, stmt, _)          -> codegen_while     info cond stmt
@@ -60,7 +60,7 @@ and codegen_cond info cond =
   match cond with
   | ELbop(oper, cond1, cond2, _) -> begin
                                       let c1 = codegen_cond info cond1
-                                      and c2 = codegen_cond_info cond2 in
+                                      and c2 = codegen_cond info cond2 in
                                       match oper with
                                       | LbopAnd -> Llvm.build_and c1 c2 "andtemp" info.builder
                                       | LbopOr  -> Llvm.build_or  c1 c2 "ortemp"  info.builder
