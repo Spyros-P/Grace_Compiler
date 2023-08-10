@@ -58,16 +58,21 @@ and codegen_block info block =
 
 and codegen_cond info cond =
   match cond with
-  | ELbop(op, cond1, cond2, _)  ->  let c1 = codegen_cond info cond1
-                                    and c2 = codegen_cond info cond2 in
-                                      match op with
+  | ELbop(oper, cond1, cond2, _) -> begin
+                                      let c1 = codegen_cond info cond1
+                                      and c2 = codegen_cond_info cond2 in
+                                      match oper with
                                       | LbopAnd -> Llvm.build_and c1 c2 "andtemp" info.builder
                                       | LbopOr  -> Llvm.build_or  c1 c2 "ortemp"  info.builder
-  | ELuop(op, cond, _)          ->  let c = codegen_cond info cond in
+                                    end
+  | ELuop(oper, cond, _)         -> begin
+                                      let c = codegen_cond info cond in
                                       match op with
                                       | LuopNot -> Llvm.build_neg c "negtemp" info.builder
-  | EComp(op, expr1, expr2, _)  ->  let e1 = codegen_expr info expr1
-                                    and e2 = codegen_expr info expr2 in
+                                    end
+  | EComp(oper, expr1, expr2, _) -> begin
+                                      let e1 = codegen_expr info expr1
+                                      and e2 = codegen_expr info expr2 in
                                       match op with
                                       | CompEq   -> Llvm.build_icmp Llvm.Icmp.Eq  e1 e2 "if_cond" info.builder
                                       | CompNeq  -> Llvm.build_icmp Llvm.Icmp.Ne  e1 e2 "if_cond" info.builder
@@ -75,6 +80,7 @@ and codegen_cond info cond =
                                       | CompLs   -> Llvm.build_icmp Llvm.Icmp.Slt e1 e2 "if_cond" info.builder
                                       | CompGrEq -> Llvm.build_icmp Llvm.Icmp.Sge e1 e2 "if_cond" info.builder
                                       | CompLsEq -> Llvm.build_icmp Llvm.Icmp.Sle e1 e2 "if_cond" info.builder
+                                    end
 
 and codegen_if info cond stmt =
   let c       = codegen_cond info cond in
