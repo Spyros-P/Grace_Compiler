@@ -1,9 +1,9 @@
 fun nestedscopes () : nothing
-   fun foo (a: int): int
-    fun bar (b: int): int
-    {
-        return 5;
-    }
+    fun foo (a: int): int
+        fun bar (b: int): int
+        {
+            return 5;
+        }
     {
         return bar (a);
     }
