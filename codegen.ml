@@ -23,8 +23,8 @@ let codegen_expr info ast =
   | EChar       c    -> codegen_char      info c
   | EUnOp       op   -> codegen_uop       info op
   | EBinOp      op   -> codegen_binop     info op
-  | ELVal       lval -> codegen_lval      info lval 
-  | EFuncCall   fn   -> codegen_func_call info fn
+  | ELVal       lval -> codegen_lval      info lval (* not implemented yet*)
+  | EFuncCall   fn   -> codegen_func_call info fn   (* not implemented yet*)
 
 let codegen_int  info i = info.c64 i
 let codegen_char info c = info.c32 (Char.code c)
@@ -57,7 +57,7 @@ let codegen_stmt info statement =
   match statement with
   | EEmpty                         -> ((*do nothing*))
   | EBlock(stmts)                  -> codegen_block     info stmts
-  | ECallFunc(fn, params)          -> codegen_func_call info fn params
+  | ECallFunc(fn, params)          -> codegen_func_call info fn params  (* not implemented yet *)
   | EAss(lval, expr, _)            -> codegen_ass       info lval expr
   | EIf(cond, stmt, _)             -> codegen_if        info cond stmt
   | EIfElse(cond, stmt1, stmt2, _) -> codegen_ifelse    info cond stmt1 stmt2
@@ -138,3 +138,4 @@ let codegen_while info cond stmt =
 let codegen_ret info = Llvm.build_ret_void info.builder
 let codegen_retval info expr = Llvm.build_ret (codegen_expr info expr) info.builder
 
+(* define main - compile and dump function *)
