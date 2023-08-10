@@ -1,0 +1,6 @@
+fun builtinfuncsid1 () : nothing
+    var writeString : int;
+{
+   writeString("Hello world!\n");
+   writeString = 5;
+}

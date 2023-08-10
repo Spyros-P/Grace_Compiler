@@ -1,0 +1,5 @@
+fun callvar(): nothing
+    var test, notcallable: int;
+{
+    test = notcallable(5);
+}
