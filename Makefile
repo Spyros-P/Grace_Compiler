@@ -2,7 +2,7 @@
 
 LLVMCONFIG=llvm-config
 LLVMLDFLAGS=-L`$(LLVMCONFIG) --libdir`
-LLVMPACKAGES=llvm #,llvm.analysis,llvm.all_backends,llvm.scalar_opts
+LLVMPACKAGES=llvm,llvm.analysis,llvm.all_backends,llvm.scalar_opts
 
 OCAMLBUILD=ocamlbuild
 OCAMLBUILDFLAGS=-use-menhir -pkgs $(LLVMPACKAGES) #-lflags -cclib,$(LLVMLDFLAGS)
@@ -14,6 +14,13 @@ main.native: FORCE
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) $@
 	@cp _build/*.cmi _build/*.mli .
 	@cp ~/.opam/default/lib/llvm/llvm.cmi .
+	@cp ~/.opam/default/lib/llvm/llvm.mli .
+	@cp ~/.opam/default/lib/llvm/llvm_analysis.cmi .
+	@cp ~/.opam/default/lib/llvm/llvm_analysis.mli .
+	@cp ~/.opam/default/lib/llvm/llvm_scalar_opts.cmi .
+	@cp ~/.opam/default/lib/llvm/llvm_scalar_opts.mli .
+	@cp ~/.opam/default/lib/llvm/llvm_all_backends.cmi .
+	@cp ~/.opam/default/lib/llvm/llvm_all_backends.mli .
 
 clean:
 	$(OCAMLBUILD) -clean

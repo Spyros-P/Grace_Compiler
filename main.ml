@@ -2,6 +2,7 @@ open Printf
 open Read
 open Error
 open Semantic
+open Codegen
 
 let print_ascii_code c =
   let ascii_code = int_of_char c in
@@ -24,4 +25,4 @@ let main =
   in
     sem_main main_func;
     close_in channel;
-    if !errors_detected=false then printf "\027[1;32mSuccessful Compilation!\027[0m\n"
+    if !errors_detected=false then llvm_compile_and_dump main_func
