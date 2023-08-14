@@ -22,6 +22,11 @@ main.native: FORCE
 	@cp ~/.opam/default/lib/llvm/llvm_all_backends.cmi .
 	@cp ~/.opam/default/lib/llvm/llvm_all_backends.mli .
 
+libmylib.a: mylib.c mylib.h
+	gcc -c mylib.c -o mylib.o
+	ar rcs libmylib.a mylib.o
+	@$(RM) mylib.o
+
 clean:
 	$(OCAMLBUILD) -clean
 	$(RM) a.ll a.s a.out

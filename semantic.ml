@@ -331,7 +331,7 @@ and sem_fun (f:func) =
 
 let sem_main (f:func) =
   match f.args, f.ret with
-  | [], ENothing  ->  open_scope ();
+  | [], _  ->  open_scope ();
                       insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; pos=f.pos }, ref true));
                       sem_fun f;
                       close_scope ()

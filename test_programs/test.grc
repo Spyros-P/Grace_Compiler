@@ -1,9 +1,24 @@
-fun main() : nothing
+fun main() : int
 
-    var x : int;
-
-    fun foo (x : int; x : int) : nothing;
+    var tmp,x,y,N : int;
 
 {
-    x <- 1;
+    $ Calculate the N first fibonacci numbers
+    N <- 40;
+
+    x <- 0;
+    y <- 1;
+
+    while (N > 0) do {
+        tmp <- x + y;
+        x <- y;
+        y <- tmp;
+
+        N <- N - 1;
+
+        writeInteger(x);
+    }
+    
+    return 0;
 }
+
