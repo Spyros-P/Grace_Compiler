@@ -2,6 +2,51 @@
     open Parser
     open Read
     exception Error of char
+
+    let read_char str =
+        match str.[0] with
+        | '\\' ->
+            ( match String.sub str 1 1 with
+            | "\""  ->  '\"'
+            | "\'"  ->  '\''
+            | "0"   ->  '\000'
+            | "r"   ->  '\r'
+            | "t"   ->  '\t'
+            | "n"   ->  '\n'
+            | "\\"  ->  '\\'
+            | "x"   ->
+                (try
+                    let code = int_of_string ("0x" ^ String.sub str 2 2) in
+                    Char.chr code
+                with
+                    _ -> failwith "Invalid hexadecimal escape sequence"
+                )
+                | _ -> failwith "Invalid escape sequence"
+            )
+        | c -> c
+    
+    let rec read_str str =
+        try match str.[0] with
+            | '\\' ->
+                ( match String.sub str 1 1 with
+                | "\""  ->  "\""    ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "\'"  ->  "\'"    ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "0"   ->  "\000"  ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "r"   ->  "\r"    ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "t"   ->  "\t"    ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "n"   ->  "\n"    ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "\\"  ->  "\\"    ^ (read_str (String.sub str 2 (String.length str-2)))
+                | "x"   ->
+                    (try
+                        let code = int_of_string ("0x" ^ String.sub str 2 2) in
+                        (String.make 1 (Char.chr code)) ^ (read_str (String.sub str 3 (String.length str-3)))
+                    with
+                        _ -> failwith "Invalid hexadecimal escape sequence"
+                    )
+                    | _ -> failwith "Invalid escape sequence"
+                )
+            | c -> (String.make 1 c) ^ (read_str (String.sub str 1 (String.length str-1)))
+        with _ -> ""
 }
 
 (* definitions section *)
@@ -75,26 +120,12 @@ and lexer = parse
     | "$$"          { consume_multi_comment lexbuf  } (* consume multi  line comment *)
     | '\''('\\' escape | "\\x" hex hex | [^'\'' '\\' '\n'])'\'' as str
         { update_status ();
-        match str.[0] with
-        | '\\' ->
-            ( match String.sub str 1 1 with
-            | "n"  -> CHARACTER('\n')
-            | "r"  -> CHARACTER('\r')
-            | "t"  -> CHARACTER('\t')
-            | "\\" -> CHARACTER('\\')
-            | "x"  ->
-                (try
-                    let code = int_of_string ("0x" ^ String.sub str 2 2) in
-                    CHARACTER(Char.chr code)
-                with
-                    _ -> failwith "Invalid hexadecimal escape sequence"
-                )
-                | _ -> failwith "Invalid escape sequence"
-            )
-        | c -> CHARACTER(c)
+        let str = (String.sub str 1 (String.length str-2)) in
+        CHARACTER(read_char str)
         }
     | '\"'('\\' escape | "\\x" hex hex | [^'\"' '\\' '\n'])*'\"' as str 
         { update_status ();
-        STRING(String.sub str 1 (String.length str-2)) }   (* remove leading and lasting double quotes *)
+        let str = String.sub str 1 (String.length str-2) in
+        STRING(read_str str) }   (* remove leading and lasting double quotes *)
     | eof           { EOF }  (* lastly, eof and error *)
     | _ as chr      { raise (Error chr) }

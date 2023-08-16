@@ -3,11 +3,11 @@
 #include "mylib.h"
 
 void writeInteger(int32_t num) {
-    printf("%d\n", num);
+    printf("%d", num);
 }
 
 void writeString(char *str) {
-    printf("%s\n", str);
+    printf("%s", str);
 }
 
 int32_t readInteger() {

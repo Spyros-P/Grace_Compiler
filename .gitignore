@@ -2,3 +2,8 @@ _build
 main.native
 *.mli
 *.cmi
+a.ll
+a.out
+a.s
+*.o
+*.a

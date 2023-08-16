@@ -1,12 +1,9 @@
 export grc="./main.native"
 
-rm -f a.o mylib.o &&
-make libmylib.a &&
-mv libmylib.a .. &&
+make lib/libmylib.a &&
 make &&
 clear &&
-${grc} test_programs/test.grc &&
+${grc} $1 &&
 cat a.ll &&
-mv ../libmylib.a . &&
-llc -filetype=obj a.ll -o a.o &&
-clang a.o -o a.out -L. -lmylib
+llc a.ll -o a.s -relocation-model=pic &&
+clang -o a.out a.s lib/libmylib.a

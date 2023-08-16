@@ -18,7 +18,7 @@ type entry =
 (* ------------------------------------------------- *)
 
 
-let build_in_defs =
+let build_in_table =
   let table =
     Hashtbl.create 10
   and defs =
@@ -46,7 +46,7 @@ let current_scope () =
   List.hd !symbol_table
 
 let lookup_head id =
-  try Some(Hashtbl.find build_in_defs id)
+  try Some(Hashtbl.find build_in_table id)
   with Not_found ->
     try
       Some (Hashtbl.find (current_scope ()) id)
@@ -60,7 +60,7 @@ let lookup id =
                         Some (Hashtbl.find cs id)
                       with Not_found -> walk id scopes
   in 
-    try Some(Hashtbl.find build_in_defs id)
+    try Some(Hashtbl.find build_in_table id)
     with Not_found -> walk id !symbol_table
 
 

@@ -1,24 +1,19 @@
-fun main() : int
+fun main() : nothing
 
-    var tmp,x,y,N : int;
+    fun inc(ref y : int) : nothing
+    {
+        y <- y+1;
+    }
+
+    var x   : int;
 
 {
-    $ Calculate the N first fibonacci numbers
-    N <- 40;
-
     x <- 0;
-    y <- 1;
-
-    while (N > 0) do {
-        tmp <- x + y;
-        x <- y;
-        y <- tmp;
-
-        N <- N - 1;
-
-        writeInteger(x);
-    }
-    
-    return 0;
+    writeString("x = ");
+    writeInteger(x);
+    writeString(" (before inc)\n");
+    inc(x);
+    writeString("x = ");
+    writeInteger(x);
+    writeString(" (after inc)\n");
 }
-
