@@ -27,6 +27,8 @@ let symbol_table : (string, Llvm.llvalue) Hashtbl.t list ref = ref []
 
 let fun_refs    : (Llvm.llvalue, bool list) Hashtbl.t =  Hashtbl.create 10
 
+let struct_types : lltype list ref = ref []
+
 (*
 let build_in_defs =
   let table = Hashtbl.create 10 in
@@ -313,39 +315,70 @@ and main_codegen_block info block =
 
 (* define main - compile and dump function *)
 
-let codegen_param info param =
-  if param.ref then Llvm.pointer_type (codegen_type info param.atype)
-  else (codegen_type info param.atype)
 
 let rec insert_params func (args:func_args list) n=
   match args with
   | []      ->  ()
   | hd::tl  ->  insert hd.id (Llvm.param func n); insert_params func tl (n+1)
 
+let codegen_param_type info param =
+  if param.ref then Llvm.pointer_type (codegen_type info param.atype)
+  else (codegen_type info param.atype)
+
+let codegen_fun_array_args info args =
+  Array.of_list ((Llvm.pointer_type (List.hd !struct_types))::(List.map (codegen_param_type info) args))
+
+
+let codegen_activation_record info func params local_defs =
+  let rec get_vars local_defs =
+    match local_defs with
+    | []              ->  []
+    | EVarDef(x)::tl  ->  x::(get_vars tl)
+    | hd::tl          ->  get_vars tl
+  in let rec insert_activation_record info ac_record (params:func_args list) (vars:var list) n =
+    match params, vars with
+    | [], []      ->  ()
+    | [], hd::tl  ->  let llval = Llvm.build_struct_gep ac_record n "ac_record_arg" info.builder
+                      in insert hd.id llval; insert_activation_record info ac_record params tl (n+1)
+    | hd::tl, _   ->  let llval = Llvm.build_struct_gep ac_record n "ac_record_var" info.builder
+                      in ignore (Llvm.build_store (Llvm.param func n) llval info.builder);
+                      insert hd.id llval; insert_activation_record info ac_record tl vars (n+1)
+  in let vars = get_vars local_defs
+  in let vars_types = List.map (fun (x:var) -> codegen_type info x.atype) vars
+  in let params_types = List.map (codegen_param_type info) params
+  in let ptr_prev_struct = Llvm.pointer_type (List.hd !struct_types)
+  in let struct_contents = ptr_prev_struct::(List.append params_types vars_types)
+  in let struct_type = Llvm.struct_type info.context (Array.of_list struct_contents)in
+  let activation_record = Llvm.build_alloca struct_type "activation_record" info.builder
+  in let struct_first_element = Llvm.build_struct_gep activation_record 0 "prev_ac_record" info.builder;
+  in ignore (Llvm.build_store (Llvm.param func 0) struct_first_element info.builder);
+  insert_activation_record info activation_record params vars 1;
+  struct_types := struct_type::(!struct_types)
+
+
 let rec codegen_localdef info def =
   match def with
-  | EFuncDef(func)        ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret) (Array.of_list (List.map (codegen_param info) func.args)) in (* fix array *)
+  | EFuncDef(func)        ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret) (codegen_fun_array_args info func.args) in (* fix array *)
                               let ffunc = Llvm.declare_function func.id ffunc_type info.the_module in
                               let bb = Llvm.append_block info.context "entry" ffunc in
                               insert func.id ffunc;
                               Hashtbl.add fun_refs ffunc (List.map (fun x -> x.ref) func.args);
                               open_scope ();
-                              insert_params ffunc func.args 0;
+                              Llvm.position_at_end bb info.builder;
+                              codegen_activation_record info ffunc func.args func.local_defs;
                               insert func.id ffunc;
                               info.funcs := ffunc::!(info.funcs);
+                              List.iter (codegen_localdef info) func.local_defs;
                               Llvm.position_at_end bb info.builder;
-                              List.iter (fun x -> codegen_localdef info x; Llvm.position_at_end bb info.builder) func.local_defs;
                               codegen_block info func.body;
                               (match func.ret with
                               | ENothing  ->  ignore (Llvm.build_ret_void info.builder)
                               | _         ->  ignore (Llvm.build_ret (info.c32 0) info.builder));
                               info.funcs := List.tl !(info.funcs);
+                              struct_types := List.tl !struct_types;
                               close_scope ()
   | EFuncDecl(func_decl)  ->  failwith "codegen_localdef"
-  | EVarDef(var)          ->  let ltype = codegen_type info var.atype in
-                              let llval = Llvm.build_alloca ltype var.id info.builder in
-                              Llvm.set_initializer (Llvm.const_null ltype) llval;
-                              insert var.id llval
+  | EVarDef(var)          ->  ()
 
 let rec main_codegen_localdef info def =
 match def with
@@ -364,8 +397,7 @@ let llvm_compile_and_dump main_func =
   let the_module = Llvm.create_module context "grace program" in
   let builder = Llvm.builder context in
   let pm = Llvm.PassManager.create () in
-  List.iter (fun f -> f pm) [
-    (*
+  let optimizations = [
     add_ipsccp; add_memory_to_register_promotion; add_dead_arg_elimination;
     add_instruction_combination; add_cfg_simplification;
     add_function_inlining; add_function_attrs; add_scalar_repl_aggregation;
@@ -378,8 +410,8 @@ let llvm_compile_and_dump main_func =
     add_aggressive_dce; add_cfg_simplification; add_instruction_combination;
     add_dead_store_elimination; add_loop_vectorize; add_slp_vectorize;
     add_strip_dead_prototypes; add_global_dce; add_cfg_simplification
-    *)
-  ];
+  ] in
+  if false then List.iter (fun f -> f pm) optimizations;
   (* Initialize types *)
   let i8 = Llvm.i8_type context in
   let i32 = Llvm.i32_type context in
@@ -437,6 +469,7 @@ let llvm_compile_and_dump main_func =
     the_writeInteger = the_writeInteger;
     the_writeString  = the_writeString;
   } in
+  struct_types := [i8];
   List.iter (main_codegen_localdef info) main_func.local_defs;
   Llvm.position_at_end bb builder;
   main_codegen_block info main_func.body;

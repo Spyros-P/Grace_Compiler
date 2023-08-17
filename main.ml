@@ -25,4 +25,5 @@ let main =
   in
     sem_main main_func;
     close_in channel;
-    if !errors_detected=false then llvm_compile_and_dump main_func
+    if !errors_detected=true then exit 1
+    else llvm_compile_and_dump main_func
