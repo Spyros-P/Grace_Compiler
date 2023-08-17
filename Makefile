@@ -2,7 +2,7 @@
 
 LLVMCONFIG=llvm-config
 LLVMLDFLAGS=-L`$(LLVMCONFIG) --libdir`
-LLVMPACKAGES=llvm,llvm.analysis,llvm.all_backends,llvm.scalar_opts
+LLVMPACKAGES=llvm,llvm.analysis,llvm.all_backends,llvm.scalar_opts,llvm.ipo,llvm.vectorize
 
 OCAMLBUILD=ocamlbuild
 OCAMLBUILDFLAGS=-use-menhir -pkgs $(LLVMPACKAGES) -lflags -cclib,$(LLVMLDFLAGS)
@@ -21,6 +21,10 @@ main.native: FORCE
 	@cp ~/.opam/default/lib/llvm/llvm_scalar_opts.mli .
 	@cp ~/.opam/default/lib/llvm/llvm_all_backends.cmi .
 	@cp ~/.opam/default/lib/llvm/llvm_all_backends.mli .
+	@cp ~/.opam/default/lib/llvm/llvm_ipo.cmi .
+	@cp ~/.opam/default/lib/llvm/llvm_ipo.mli .
+	@cp ~/.opam/default/lib/llvm/llvm_vectorize.cmi .
+	@cp ~/.opam/default/lib/llvm/llvm_vectorize.mli .
 
 lib/libmylib.a: lib/mylib.c lib/mylib.h
 	gcc -c lib/mylib.c -o lib/mylib.o

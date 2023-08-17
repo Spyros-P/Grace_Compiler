@@ -1,8 +1,11 @@
 open Ast
 open Llvm
+open Llvm_ipo
+open Llvm_vectorize
 open Llvm_analysis
 open Llvm_scalar_opts
 open Llvm_all_backends
+(*open Llvm.PassManager*)
 
 type llvm_info = {
   context          : Llvm.llcontext;
@@ -337,7 +340,7 @@ let rec codegen_localdef info def =
                               | ENothing  ->  ignore (Llvm.build_ret_void info.builder)
                               | _         ->  ignore (Llvm.build_ret (info.c32 0) info.builder));
                               info.funcs := List.tl !(info.funcs);
-                              close_scope ();
+                              close_scope ()
   | EFuncDecl(func_decl)  ->  failwith "codegen_localdef"
   | EVarDef(var)          ->  let ltype = codegen_type info var.atype in
                               let llval = Llvm.build_alloca ltype var.id info.builder in
@@ -363,11 +366,18 @@ let llvm_compile_and_dump main_func =
   let pm = Llvm.PassManager.create () in
   List.iter (fun f -> f pm) [
     (*
-    Llvm_scalar_opts.add_memory_to_register_promotion;
-    Llvm_scalar_opts.add_instruction_combination;
-    Llvm_scalar_opts.add_reassociation;
-    Llvm_scalar_opts.add_gvn;
-    Llvm_scalar_opts.add_cfg_simplification;
+    add_ipsccp; add_memory_to_register_promotion; add_dead_arg_elimination;
+    add_instruction_combination; add_cfg_simplification;
+    add_function_inlining; add_function_attrs; add_scalar_repl_aggregation;
+    add_early_cse; add_cfg_simplification; add_instruction_combination;
+    add_tail_call_elimination; add_reassociation; add_loop_rotation;
+    add_loop_unswitch; add_instruction_combination; add_cfg_simplification;
+    add_ind_var_simplification; add_loop_idiom; add_loop_deletion;
+    add_loop_unroll; add_gvn; add_memcpy_opt; add_sccp; add_licm;
+    add_global_optimizer; add_global_dce;
+    add_aggressive_dce; add_cfg_simplification; add_instruction_combination;
+    add_dead_store_elimination; add_loop_vectorize; add_slp_vectorize;
+    add_strip_dead_prototypes; add_global_dce; add_cfg_simplification
     *)
   ];
   (* Initialize types *)
