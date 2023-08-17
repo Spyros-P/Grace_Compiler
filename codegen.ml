@@ -317,10 +317,17 @@ let codegen_param info param =
   if param.ref then Llvm.pointer_type (codegen_type info param.atype)
   else (codegen_type info param.atype)
 
-let rec insert_params func (args:func_args list) n=
+(*let rec insert_params func (args:func_args list) n=
   match args with
   | []      ->  ()
-  | hd::tl  ->  insert hd.id (Llvm.param func n); insert_params func tl (n+1)
+  | hd::tl  ->  insert hd.id (Llvm.param func n); insert_params func tl (n+1)*)
+
+let insert_parameters func (args:func_args list) =
+  let rec auxilary counter (args:func_args list) =
+    match args with
+    | []       ->  ()
+    | hd::tl   ->  insert hd.id (Llvm.param func counter); auxilary (counter+1) tl
+  in auxilary 0 args
 
 let rec codegen_localdef info def =
   match def with
@@ -330,7 +337,8 @@ let rec codegen_localdef info def =
                               insert func.id ffunc;
                               Hashtbl.add fun_refs ffunc (List.map (fun x -> x.ref) func.args);
                               open_scope ();
-                              insert_params ffunc func.args 0;
+                              (*insert_params ffunc func.args 0;*)
+                              insert_parameters ffunc func.args;
                               insert func.id ffunc;
                               info.funcs := ffunc::!(info.funcs);
                               Llvm.position_at_end bb info.builder;
