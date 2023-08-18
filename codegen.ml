@@ -223,7 +223,7 @@ and codegen_call_func info id params =
     | _, _                                -> failwith "codegen_call_func") in
   let func = id_get_llvalue info id in
   let fix = fun_get_struct_ptr info id in
-  let ref_lst = (try Hashtbl.find fun_refs func
+  let ref_lst = (try Hashtbl.find fun_refs funcMerge branch 'main' of github.com:Spyros-P/Grace_Compiler
                 with Not_found ->  failwith "codegen_call_func") in
   Llvm.build_call func (Array.of_list (fix (walk params ref_lst))) "" info.builder
 
