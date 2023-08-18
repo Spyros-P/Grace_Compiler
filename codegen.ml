@@ -16,18 +16,21 @@ type llvm_info = {
   i64              : Llvm.lltype;
   c32              : int -> Llvm.llvalue;
   c64              : int -> Llvm.llvalue;
+  i8_ptr_trash     : llvalue;
   the_nl           : Llvm.llvalue;
   funcs            : Llvm.llvalue list ref;
-  build_in_table   : (string, Llvm.llvalue) Hashtbl.t;
+  curr_ac_record   : Llvm.llvalue ref;
+  build_in_table   : (string, Llvm.llvalue -> Llvm.llvalue) Hashtbl.t;
   the_writeInteger : Llvm.llvalue;
   the_writeString  : Llvm.llvalue;
 }
 
-let symbol_table : (string, Llvm.llvalue) Hashtbl.t list ref = ref []
+let symbol_table : (string, Llvm.llvalue -> Llvm.llvalue) Hashtbl.t list ref = ref []
 
 let fun_refs    : (Llvm.llvalue, bool list) Hashtbl.t =  Hashtbl.create 10
 
 let struct_types : lltype list ref = ref []
+
 
 (*
 let build_in_defs =
@@ -72,16 +75,24 @@ let lookup_head info id =
       Some (Hashtbl.find (current_scope ()) id)
     with Not_found -> None
 
+(*
+    Lookup function returns a tuple of (llvalue->llvalue , int) option 
+    The integer represent the depth of the scope that the variable/function was declared
+    Specific integer values: -1 (means global scope), -2 (means build_in functions)
+*)
 let lookup info id =
-  let rec walk id st =
+  let rec walk id st n =
     match st with
-    | [] -> None
-    | cs :: scopes -> try
-                        Some (Hashtbl.find cs id)
-                      with Not_found -> walk id scopes
+    | []          ->  None
+    | cs::[]      ->  (try
+                        Some (Hashtbl.find cs id, -1)
+                      with Not_found -> None)
+    | cs::scopes  ->  (try
+                        Some (Hashtbl.find cs id, n)
+                      with Not_found -> walk id scopes (n+1))
   in 
-    try Some(Hashtbl.find info.build_in_table id)
-    with Not_found -> walk id !symbol_table
+    try Some(Hashtbl.find info.build_in_table id, -2)
+    with Not_found -> walk id !symbol_table 0
 
 
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)
@@ -133,10 +144,26 @@ let rec codegen_type info atype =
   | ENothing        ->  Llvm.void_type info.context
 
 let id_get_llvalue info id =
-  match lookup info id with
-  | Some(llval) ->  llval
-  | _           ->  failwith "id_get_llvalue"
+  let rec get_ac_record ac_record i =
+    let rec walk ac_record i =
+      let llval = ref (Llvm.build_struct_gep ac_record 0 "prev_ac_record" info.builder) in
+        for i = i downto 2 do
+          llval := Llvm.build_load !llval "lval_tmp" info.builder;
+          llval := Llvm.build_struct_gep !llval 0 "prev_ac_record" info.builder
+        done; Llvm.build_load !llval "lval_tmp" info.builder
+    in (if (i > 0) then walk ac_record i else ac_record)
+  in match lookup info id with
+  | Some(llval,i) ->  llval (get_ac_record !(info.curr_ac_record) i)
+  | _             ->  failwith "id_get_llvalue"
 
+
+let fun_get_struct_ptr info id =
+  match lookup info id with
+  | Some(_,-2)  ->  (fun x -> x)
+  | Some(_,-1)  ->  if ((List.length !(info.funcs)) == 1) then (fun x -> (info.i8_ptr_trash)::x) else (fun x -> (Llvm.param (List.hd !(info.funcs)) 0)::x)
+  | Some(_,0)   ->  (fun x -> !(info.curr_ac_record)::x)
+  | Some(_,1)   ->  (fun x -> (Llvm.param (List.hd !(info.funcs)) 0)::x)
+  | _              ->  failwith "fun_get_struct_ptr"  
 
 let rec codegen_lval info lval =
   match lval with
@@ -195,9 +222,10 @@ and codegen_call_func info id params =
     | param::rest_params, ref::rest_refs  ->  (get_llval param ref) :: (walk rest_params rest_refs)
     | _, _                                -> failwith "codegen_call_func") in
   let func = id_get_llvalue info id in
+  let fix = fun_get_struct_ptr info id in
   let ref_lst = (try Hashtbl.find fun_refs func
                 with Not_found ->  failwith "codegen_call_func") in
-  Llvm.build_call func (Array.of_list (walk params ref_lst)) "" info.builder
+  Llvm.build_call func (Array.of_list (fix (walk params ref_lst))) "" info.builder
 
 (* the following functions are helpers for handling statements *)
 let codegen_ret info =
@@ -316,11 +344,6 @@ and main_codegen_block info block =
 (* define main - compile and dump function *)
 
 
-let rec insert_params func (args:func_args list) n=
-  match args with
-  | []      ->  ()
-  | hd::tl  ->  insert hd.id (Llvm.param func n); insert_params func tl (n+1)
-
 let codegen_param_type info param =
   if param.ref then Llvm.pointer_type (codegen_type info param.atype)
   else (codegen_type info param.atype)
@@ -338,11 +361,11 @@ let codegen_activation_record info func params local_defs =
   in let rec insert_activation_record info ac_record (params:func_args list) (vars:var list) n =
     match params, vars with
     | [], []      ->  ()
-    | [], hd::tl  ->  let llval = Llvm.build_struct_gep ac_record n "ac_record_arg" info.builder
-                      in insert hd.id llval; insert_activation_record info ac_record params tl (n+1)
-    | hd::tl, _   ->  let llval = Llvm.build_struct_gep ac_record n "ac_record_var" info.builder
-                      in ignore (Llvm.build_store (Llvm.param func n) llval info.builder);
-                      insert hd.id llval; insert_activation_record info ac_record tl vars (n+1)
+    | [], hd::tl  ->  let get_var = (fun llval -> Llvm.build_struct_gep llval n "ac_record_arg" info.builder)
+                      in insert hd.id get_var; insert_activation_record info ac_record params tl (n+1)
+    | hd::tl, _   ->  let get_param = (fun llval -> Llvm.build_struct_gep llval n "ac_record_var" info.builder)
+                      in ignore (Llvm.build_store (Llvm.param func n) (get_param ac_record) info.builder);
+                      insert hd.id get_param; insert_activation_record info ac_record tl vars (n+1)
   in let vars = get_vars local_defs
   in let vars_types = List.map (fun (x:var) -> codegen_type info x.atype) vars
   in let params_types = List.map (codegen_param_type info) params
@@ -353,7 +376,8 @@ let codegen_activation_record info func params local_defs =
   in let struct_first_element = Llvm.build_struct_gep activation_record 0 "prev_ac_record" info.builder;
   in ignore (Llvm.build_store (Llvm.param func 0) struct_first_element info.builder);
   insert_activation_record info activation_record params vars 1;
-  struct_types := struct_type::(!struct_types)
+  struct_types := struct_type::(!struct_types);
+  activation_record
 
 
 let rec codegen_localdef info def =
@@ -361,15 +385,15 @@ let rec codegen_localdef info def =
   | EFuncDef(func)        ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret) (codegen_fun_array_args info func.args) in (* fix array *)
                               let ffunc = Llvm.declare_function func.id ffunc_type info.the_module in
                               let bb = Llvm.append_block info.context "entry" ffunc in
-                              insert func.id ffunc;
+                              insert func.id (fun _ -> ffunc);
                               Hashtbl.add fun_refs ffunc (List.map (fun x -> x.ref) func.args);
                               open_scope ();
                               Llvm.position_at_end bb info.builder;
-                              codegen_activation_record info ffunc func.args func.local_defs;
-                              insert func.id ffunc;
+                              let ac_record = codegen_activation_record info ffunc func.args func.local_defs in
                               info.funcs := ffunc::!(info.funcs);
                               List.iter (codegen_localdef info) func.local_defs;
                               Llvm.position_at_end bb info.builder;
+                              info.curr_ac_record := ac_record;
                               codegen_block info func.body;
                               (match func.ret with
                               | ENothing  ->  ignore (Llvm.build_ret_void info.builder)
@@ -388,7 +412,7 @@ match def with
                             let llval = Llvm.declare_global ltype var.id info.the_module in
                             Llvm.set_linkage Llvm.Linkage.Private llval;
                             Llvm.set_initializer (Llvm.const_null ltype) llval;
-                            insert var.id llval
+                            insert var.id (fun _ -> llval)
 
 let llvm_compile_and_dump main_func =
   (* Initialize *)
@@ -409,7 +433,7 @@ let llvm_compile_and_dump main_func =
     add_global_optimizer; add_global_dce;
     add_aggressive_dce; add_cfg_simplification; add_instruction_combination;
     add_dead_store_elimination; add_loop_vectorize; add_slp_vectorize;
-    add_strip_dead_prototypes; add_global_dce; add_cfg_simplification
+    add_strip_dead_prototypes; add_global_dce; add_cfg_simplification;
   ] in
   if false then List.iter (fun f -> f pm) optimizations;
   (* Initialize types *)
@@ -442,9 +466,9 @@ let llvm_compile_and_dump main_func =
     Llvm.function_type i32 [| |] in
   let the_readInteger =
     Llvm.declare_function "readInteger" readInteger_type the_module in
-  Hashtbl.add build_in_table "writeInteger" the_writeInteger;
-  Hashtbl.add build_in_table "writeString" the_writeString;
-  Hashtbl.add build_in_table "readInteger" the_readInteger;
+  Hashtbl.add build_in_table "writeInteger" (fun _ -> the_writeInteger);
+  Hashtbl.add build_in_table "writeString" (fun _ -> the_writeString);
+  Hashtbl.add build_in_table "readInteger" (fun _ -> the_readInteger);
   Hashtbl.add fun_refs the_writeInteger [false];
   Hashtbl.add fun_refs the_writeString [true];
   Hashtbl.add fun_refs the_readInteger [];
@@ -453,6 +477,8 @@ let llvm_compile_and_dump main_func =
   let main_type = Llvm.function_type i32 [| |] in
   let main = Llvm.declare_function "main" main_type the_module in
   let bb = Llvm.append_block context "entry" main in
+  Llvm.position_at_end bb builder;
+  let i8_ptr_trash = Llvm.build_alloca i8 "$_i8_ptr_trash" builder in
   (* Emit the program code *)
   let info = {
     context          = context;
@@ -463,8 +489,10 @@ let llvm_compile_and_dump main_func =
     i64              = i64;
     c32              = c32;
     c64              = c64;
+    i8_ptr_trash     = i8_ptr_trash;
     the_nl           = the_nl;
     funcs            = ref [main];
+    curr_ac_record   = ref the_nl;          (* initialized with trash value *)
     build_in_table   = build_in_table;
     the_writeInteger = the_writeInteger;
     the_writeString  = the_writeString;
