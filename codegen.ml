@@ -29,8 +29,9 @@ type llvm_info = {
 (*
    symbol table:
     - Key: a string that is the name of the variable being looked up.
-    - Value: a function that follows the links ("walker") of the activation 
-             records and finds the variable.
+    - Value: a function that knows which entry of the activation record
+             corresponds to the identifier that is being looked up. It is
+             basically a "getter".
 *)
 let symbol_table : (string, Llvm.llvalue -> Llvm.llvalue) Hashtbl.t list ref = ref []
 
@@ -144,14 +145,16 @@ let id_get_llvalue info id =
         llval := Llvm.build_struct_gep !llval 0 "prev_ac_record" info.builder
       done;
       Llvm.build_load !llval "lval_tmp" info.builder
-    in (if (i > 0) 
-        then walk ac_record 
+    in (if (i > 0) (* if the depth is greater than 0, start walking *)
+        then walk ac_record  (* otherwise return the current activation record *)
         else ac_record)
   in match lookup info id with
-  (* if the lookup returns a walker function,
+  (* if the lookup returns a getter function,
      start following the links from the
      current activation record. *)
-  | Some(walker, depth) ->  walker (get_ac_record !(info.curr_ac_record) depth)
+                            (* the getter gets the appropriate entry of the activation record *)
+                            (* the get_ac_record gets the appropriate activation record *)
+  | Some(getter, depth) ->  getter (get_ac_record !(info.curr_ac_record) depth)
   (* otherwise fail *)
   | _                   ->  failwith "id_get_llvalue"
 
@@ -181,6 +184,7 @@ let rec codegen_lval info lval =
 
 and codegen_lval_load info lval =
   match lval with
+                                (* this fetches the appropriate activation record *)
   | EAssId(id,_)            ->  let llval = id_get_llvalue info id in
                                 Llvm.build_load llval "lval_tmp" info.builder
   | EAssString(str,_)       ->  failwith "codegen_lval_load"
