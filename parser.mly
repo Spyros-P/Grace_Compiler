@@ -88,7 +88,7 @@ program:/*                                                  V               */
     ;
 
 func_def:
-    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; pos=h.pos } }
+    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; param_acc_link=(!(h.param_acc_link)); gen_acc_link=ref false; pos=h.pos } }
     ;
 
 local_def_star:
@@ -97,8 +97,8 @@ local_def_star:
     ;
 
 header:
-    | FUN ln1=line id=ID "(" p=fparams_def ")" ":" r=ret_type ln2=line         { { id = id; args = p; ret = r; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
-    | FUN ln1=line id=ID "(" ")" ":" r=ret_type ln2=line                      { { id = id; args = []; ret = r; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
+    | FUN ln1=line id=ID "(" p=fparams_def ")" ":" r=ret_type ln2=line         { { id = id; args = p; ret = r; param_acc_link=ref (ref false); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
+    | FUN ln1=line id=ID "(" ")" ":" r=ret_type ln2=line                      { { id = id; args = []; ret = r; param_acc_link=ref (ref false); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
     ;
 
 /* >>> Help */
@@ -113,8 +113,8 @@ semic_fpar_def_star:
 /* <<< Help */
 
 fpar_def:
-    | REF ln1=line id=ID ids=comma_id_star ":" t=fpar_type ln2=line           { List.map (fun name -> {id = name; atype = t; ref = true;  pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
-    | id=ID ln1=line ids=comma_id_star ":" t=fpar_type ln2=line               { List.map (fun name -> {id = name; atype = t; ref = false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
+    | REF ln1=line id=ID ids=comma_id_star ":" t=fpar_type ln2=line           { List.map (fun name -> {id = name; atype = t; ref = true;  to_ac_rec=ref false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
+    | id=ID ln1=line ids=comma_id_star ":" t=fpar_type ln2=line               { List.map (fun name -> {id = name; atype = t; ref = false; to_ac_rec=ref false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
     ;
 
 /* >>> Help */
@@ -161,7 +161,7 @@ func_decl:
     ;
 
 var_def:
-    | VAR ln1=line id=ID ids=comma_id_star ":" t=ttype ln2=line sem=semicol           { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); List.map (fun name -> {id = name; atype = t; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
+    | VAR ln1=line id=ID ids=comma_id_star ":" t=ttype ln2=line sem=semicol           { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); List.map (fun name -> {id = name; atype = t; to_ac_rec=ref false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
     ;
 
 stmt:

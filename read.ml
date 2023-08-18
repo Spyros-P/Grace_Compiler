@@ -9,6 +9,7 @@ type position = {
   char_end    : int
 }
 
+let pos_zero = {line_start=0;line_end=0;char_start=0;char_end=0}
 
 let prev_line = ref 1
 let curr_line = ref 1

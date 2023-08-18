@@ -14,7 +14,7 @@ let curr_fun : func_decl list ref = ref []
 (* ------------------------------------------------- *)
 
 let fun_def2decl (f:func) =
-  { id = f.id; args = f.args; ret = f.ret; pos=f.pos }
+  { id = f.id; args = f.args; ret = f.ret; param_acc_link = ref (f.param_acc_link); pos=f.pos }
 
 let sem_closing_scope () =
   let find_decl _ entr =
@@ -25,9 +25,9 @@ let sem_closing_scope () =
 
 let used id =
   match lookup id with
-  | Some(Efundecl(_, b)) -> b := true
-  | Some(Efuncdef(_, b)) -> b := true
-  | Some(Evar(_, b, _))  -> b := true
+  | Some(Efundecl(_, b),_) -> b := true
+  | Some(Efuncdef(_, b),_) -> b := true
+  | Some(Evar(_, b, _),_)  -> b := true
   | _ -> failwith "used" (* should fix: check if it fails with internal functions*)
 
 
@@ -44,7 +44,7 @@ let symbol_add_arg (arg:func_args) =
                             print_file_lines filename (List.hd !curr_fun).pos.line_start (List.hd !curr_fun).pos.line_end;
                             exit 1
   | _ -> failwith "symbol_add_arg");
-  insert arg.id (Evar({id=arg.id;atype=arg.atype;pos=arg.pos}, ref false, ref false))
+  insert arg.id (Evar({id=arg.id;atype=arg.atype;to_ac_rec=arg.to_ac_rec;pos=arg.pos}, ref false, ref false))
 
 
 
@@ -109,27 +109,22 @@ let rec get_lval_type (x:lvalue) =
                                     | ECharacter(hd::tl) -> ECharacter(tl)
                                     | _ -> (error "Array dimensions have been exeeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 1))
                                 else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 1)
-  | EAssId(str,_)         ->  match lookup str with 
+  | EAssId(str,_)         ->  used str;
+                              match lookup str with
                               | None -> error "Variable \"%s\" has not declared\n" str; exit 1
-                              | Some(Evar(v,_,_)) -> v.atype
+                              | Some(Evar(v,_,_),i) -> if (i>0) then (v.to_ac_rec := true; !((List.hd !curr_fun).param_acc_link) := true); v.atype
                               | _ -> failwith "get_lval_type"
 
 
-and sem_lval (l:lvalue) =
-  match l with
-  | EAssString(str,_)       ->  ()
-  | EAssArrEl(lval,e,_)     ->  sem_lval lval; let _ = sem_expr e in ()
-  | EAssId(str,_)           ->  used str
-
 and sem_expr (e:expr) =
   match e with
-  | ELVal(l,_)              ->  sem_lval l; get_lval_type l
+  | ELVal(l,_)              ->  get_lval_type l
   | EInt(i,_)               ->  EInteger([])
   | EChar(c,_)              ->  ECharacter([])
   | EFuncCall(id,elst,pos)  ->  let
                                   fn = (match lookup id with
-                                      | Some(Efuncdef(decl, _)) -> decl
-                                      | Some(Efundecl(decl, _)) -> decl
+                                      | Some(Efuncdef(decl, _),_) -> decl
+                                      | Some(Efundecl(decl, _),_) -> decl
                                       | _ -> failwith "sem_expr")
                                 in
                                   used id;
@@ -175,9 +170,9 @@ let rec sem_stmt (s:stmt) =
   | EBlock(b,_)             ->  sem_block b
   | ECallFunc(x,y,pos)      ->  let
                                   fn = match lookup x with
-                                      | Some(Efuncdef(decl,_)) -> decl
-                                      | Some(Efundecl(decl,_)) -> decl
-                                      | Some(Evar(var,_,_))    -> error "\"%s\" has defined as a variable but used as a function\n" x;
+                                      | Some(Efuncdef(decl,_),_) -> decl
+                                      | Some(Efundecl(decl,_),_) -> decl
+                                      | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
                                                                   printf "Variable definition:\n";
                                                                   print_file_lines filename var.pos.line_start var.pos.line_end;
                                                                   printf "\nUsed as:\n";
@@ -241,7 +236,7 @@ let rec symbol_add_def (decl:local_def) =
   match decl with
   | EFuncDef(func) -> (match lookup_head func.id with
                       | None -> ()
-                      | Some(Efundecl(x,_)) ->  check_decl_def x func; remove_head func.id
+                      | Some(Efundecl(x,_)) ->  x.param_acc_link := func.param_acc_link; check_decl_def x func; remove_head func.id
                       | Some(Efuncdef(x,_)) ->  if (x.pos.line_start == 0)
                                                 then (error "Name conflict: internal function \"%s\" and function \"%s\"\n" x.id x.id;
                                                       printf "Function definition:\n";
@@ -320,7 +315,7 @@ let rec symbol_add_def (decl:local_def) =
 and sem_fun (f:func) =
   curr_fun := (fun_def2decl f)::!curr_fun;
   open_scope ();
-  insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; pos=f.pos }, ref false));
+  insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; param_acc_link=ref f.param_acc_link; pos=f.pos }, ref false));
   List.iter symbol_add_arg f.args;
   List.iter symbol_add_def f.local_defs;
   sem_block f.body;
@@ -329,10 +324,26 @@ and sem_fun (f:func) =
   close_scope ();
   curr_fun := List.tl !curr_fun
 
+let rec fill_gen_acc_link (f:func) =
+  let rec get_var_bools local_defs =
+    match local_defs with
+    | []              ->  []
+    | EVarDef(x)::tl  ->  !(x.to_ac_rec)::(get_var_bools tl)
+    | EFuncDef(x)::tl  -> fill_gen_acc_link f; get_var_bools tl
+    | hd::tl          ->  get_var_bools tl
+  in let rec get_bool lst1 lst2 =
+    match lst1, lst2 with
+    | [], []  -> false
+    | hd::tl, lst2 -> if hd then true else (get_bool tl lst2)
+    | lst1, hd::tl -> if hd then true else (get_bool lst1 tl)
+  in let var_bools = get_var_bools f.local_defs
+  in let param_bools = List.map (fun (x:func_args) -> !(x.to_ac_rec)) f.args
+  in f.gen_acc_link := (get_bool var_bools param_bools)
+
 let sem_main (f:func) =
   match f.args, f.ret with
   | [], ENothing  ->  open_scope ();
-                      insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; pos=f.pos }, ref true));
+                      insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; param_acc_link=ref f.param_acc_link; pos=f.pos }, ref true));
                       sem_fun f;
                       close_scope ()
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and should return nothing\n" f.id; exit 1)

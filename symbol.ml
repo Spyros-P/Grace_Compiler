@@ -22,10 +22,10 @@ let build_in_table =
   let table =
     Hashtbl.create 10
   and defs =
-    { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; pos={line_start=0;line_end=0;char_start=0;char_end=0} }::[]; ret = ENothing; pos={line_start=0;line_end=0;char_start=0;char_end=0} }::
-    { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; pos={line_start=0;line_end=0;char_start=0;char_end=0} }::[]; ret = ENothing; pos={line_start=0;line_end=0;char_start=0;char_end=0} }::
-    { id = "readInteger"; args = []; ret = EInteger([]); pos={line_start=0;line_end=0;char_start=0;char_end=0} }::
-    { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; pos={line_start=0;line_end=0;char_start=0;char_end=0} }::[]; ret = EInteger([]); pos={line_start=0;line_end=0;char_start=0;char_end=0} }::
+    { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; param_acc_link=ref (ref false); pos=pos_zero }::
+    { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; param_acc_link=ref (ref false); pos=pos_zero }::
+    { id = "readInteger"; args = []; ret = EInteger([]); param_acc_link=ref (ref false); pos=pos_zero }::
+    { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); param_acc_link=ref (ref false); pos=pos_zero }::
     []
   in List.iter (fun (def:func_decl) -> Hashtbl.add table def.id (Efuncdef(def, ref false)) ) defs; table
 
@@ -53,15 +53,18 @@ let lookup_head id =
     with Not_found -> None
 
 let lookup id =
-  let rec walk id st =
+  let rec walk id st n =
     match st with
     | [] -> None
-    | cs :: scopes -> try
-                        Some (Hashtbl.find cs id)
-                      with Not_found -> walk id scopes
+    | cs :: []     -> (try
+                        Some (Hashtbl.find cs id, -1)
+                      with Not_found -> None)
+    | cs :: scopes -> (try
+                        Some (Hashtbl.find cs id, n)
+                      with Not_found -> walk id scopes (n+1))
   in 
-    try Some(Hashtbl.find build_in_table id)
-    with Not_found -> walk id !symbol_table
+    try Some(Hashtbl.find build_in_table id, -1)
+    with Not_found -> walk id !symbol_table 0
 
 
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)
