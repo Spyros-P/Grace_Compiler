@@ -84,6 +84,7 @@ and func = {
   local_defs        : local_def list;
   body              : block;
   ret               : types;
+  pass_acc_link     : bool ref;
   gen_acc_link      : bool ref;   (* function generates an 'activation record'/'access link' *)
   depend            : (int * int) option ref;
   father_func       : func_decl option ref;
@@ -94,12 +95,15 @@ and func = {
 (* ------------------------------------------------- *)
 
 let build_in_defs =
-  { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=true; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   { id = "readInteger"; args = []; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
-  { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=true; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   []
 
+
+let fun_def2decl (f:func) =
+  { id = f.id; args = f.args; ret = f.ret; depend = ref f.depend; father_func = ref f.father_func; pos=f.pos }
 
 let rec types_to_str t =
   match t with

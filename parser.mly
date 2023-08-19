@@ -88,7 +88,7 @@ program:/*                                                  V               */
     ;
 
 func_def:
-    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; gen_acc_link=ref false; depend=ref None; father_func=ref None; pos=h.pos } }
+    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; pass_acc_link=ref false; gen_acc_link=ref false; depend=ref None; father_func=ref None; pos=h.pos } }
     ;
 
 local_def_star:
@@ -177,7 +177,7 @@ stmt:
     ;
 
 block:
-    | "{" ln1=line list=stmt_star "}" ln2=line                                { EListStmt(list,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
+    | "{" ln1=line list=stmt_star "}" ln2=line              { EListStmt(list,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
     ;
 
 /* >>> Help */

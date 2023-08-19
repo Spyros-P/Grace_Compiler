@@ -10,9 +10,8 @@ open Symbol
 
 let curr_fun : func_decl list ref = ref []
 
-(* (caller,callee) tuple *)
-let sibling_dependacies : (func_decl * func_decl) list ref = ref []
-let father_child_dependancies : (func_decl * func_decl) list ref = ref []
+(* (caller,callee,int) tuple *)
+let caller_callee_dependancies : (func_decl * func_decl * int) list ref = ref []
 
 (* ------------------------------------------------- *)
 
@@ -23,8 +22,6 @@ let update_depend depend i =
   | Some(min,max) ->  if (i < min) then (depend := Some(i,max); true)
                       else (if (max < i) then (depend := Some(min,i); true) else false)
 
-let fun_def2decl (f:func) =
-  { id = f.id; args = f.args; ret = f.ret; depend = ref f.depend; father_func = ref f.father_func; pos=f.pos }
 
 let sem_closing_scope () =
   let find_decl _ entr =
@@ -140,8 +137,7 @@ and sem_expr (e:expr) =
                                 in
                                   (used id;
                                   let curr_fn = List.hd !curr_fun in
-                                  if ((i=0) && (curr_fn.id <> fn.id)) then father_child_dependancies := (curr_fn,fn)::!father_child_dependancies
-                                  else if (i=1) then sibling_dependacies := (curr_fn,fn)::!sibling_dependacies;
+                                  if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                   if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
                                   then fn.ret
                                   else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
@@ -197,8 +193,7 @@ let rec sem_stmt (s:stmt) =
                                                 exit 1
                                 in
                                   let curr_fn = List.hd !curr_fun in
-                                  if ((i=0) && (curr_fn.id <> fn.id)) then father_child_dependancies := (curr_fn,fn)::!father_child_dependancies
-                                  else if (i=1) then sibling_dependacies := (curr_fn,fn)::!sibling_dependacies;
+                                  if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                   if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
                                   then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
                                   else (error "Function argument types missmatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
@@ -354,30 +349,47 @@ let rec print_depend f depth =
     match loc_def with
     | EFuncDef(x) ->  print_depend x (depth+1)
     | _           ->  ()
-  in (Printf.printf "%s%s : %s\n" (String.make (depth*2) ' ') f.id (string_depend !(f.depend)); List.iter (dig depth) (f.local_defs))
+  in (Printf.printf "%s%s : %s , Father : %s , Grandfather : %s\n" (String.make (depth*2) ' ') f.id (string_depend !(f.depend))
+  (match !(f.father_func) with Some(f) -> f.id | None -> "NaN") (match !(f.father_func) with Some(f) -> (match !(!(f.father_func)) with Some(f) -> f.id | None -> "NaN") | None -> "NaN");
+  List.iter (dig depth) (f.local_defs))
 
 
 let fix_depends () =
-  let rec fix_siblings (lst:(func_decl*func_decl) list) =
+  let rec fix_caller_callee (lst:(func_decl*func_decl*int) list) =
     match lst with
-    | []            ->  false
-    | (fn1,fn2)::tl ->  match !(!(fn2.depend)) with
-                        | None          ->  fix_siblings tl
-                        | Some(min,max) ->  if (update_depend !(fn1.depend) min || update_depend !(fn1.depend) max)
-                                            then true else fix_siblings tl
-  in let rec fix_father_child (lst:(func_decl*func_decl) list) =
-    match lst with
-    | []            ->  false
-    | (fn1,fn2)::tl ->  match !(!(fn2.depend)) with
-                        | None          ->  fix_father_child tl
-                        | Some(min,max) ->  if (update_depend !(fn1.depend) (min-1) || update_depend !(fn1.depend) (max-1))
-                                            then true else fix_father_child tl
+    | []              ->  false
+    | (fn1,fn2,i)::tl ->  match !(!(fn2.depend)) with
+                        | None          ->  fix_caller_callee tl
+                        | Some(min,max) ->  if (update_depend !(fn1.depend) (min+i) || update_depend !(fn1.depend) (max+i))
+                                            then true else fix_caller_callee tl
   in let result = ref true
   in while !result do
-    result := fix_siblings !sibling_dependacies || fix_father_child !father_child_dependancies
+    result := fix_caller_callee !caller_callee_dependancies
   done
+
+let rec fill_pass_acc_link f =
+  let rec filter_defs loc_defs =
+    match loc_defs with
+    | [] -> []
+    | EFuncDef(x)::tl -> x::(filter_defs tl)
+    | _::tl -> filter_defs tl
+  in let rec store_acc_link defs =
+    match defs with
+    | [] -> false
+    | hd::tl -> (match !(hd.depend) with
+                | Some(1,i) -> if i>1 then true else store_acc_link tl
+                | _ -> store_acc_link tl)
+  in let defs = filter_defs f.local_defs
+  in f.pass_acc_link := store_acc_link defs;
+  List.iter fill_pass_acc_link defs
 
 let sem_main (f:func) =
   match f.args, f.ret with
-  | [], ENothing  ->  curr_fun := [fun_def2decl f]; sem_fun f; fix_depends ()(*; print_endline ("siblings : " ^ string_of_int (List.length !sibling_dependacies)); print_endline ("father-children : " ^ string_of_int (List.length !father_child_dependancies)); print_depend f 0*)
+  | [], ENothing  ->  curr_fun := [fun_def2decl f];
+                      sem_fun f;
+                      fix_depends ();
+                      fill_pass_acc_link f(*;
+                      print_endline ("siblings : " ^ string_of_int (List.length !sibling_dependacies));
+                      print_endline ("father-children : " ^ string_of_int (List.length !father_child_dependancies));
+                      print_depend f 0*)
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and should return nothing\n" f.id; exit 1)
