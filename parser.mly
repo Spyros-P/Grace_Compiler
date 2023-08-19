@@ -88,7 +88,7 @@ program:/*                                                  V               */
     ;
 
 func_def:
-    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; param_acc_link=(!(h.param_acc_link)); gen_acc_link=ref false; pos=h.pos } }
+    | h=header l_def=local_def_star b=block                 { { id = h.id; args = h.args; local_defs = l_def; body = b; ret = h.ret; gen_acc_link=ref false; depend=ref None; father_func=ref None; pos=h.pos } }
     ;
 
 local_def_star:
@@ -97,8 +97,8 @@ local_def_star:
     ;
 
 header:
-    | FUN ln1=line id=ID "(" p=fparams_def ")" ":" r=ret_type ln2=line         { { id = id; args = p; ret = r; param_acc_link=ref (ref false); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
-    | FUN ln1=line id=ID "(" ")" ":" r=ret_type ln2=line                      { { id = id; args = []; ret = r; param_acc_link=ref (ref false); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
+    | FUN ln1=line id=ID "(" p=fparams_def ")" ":" r=ret_type ln2=line         { { id = id; args = p; ret = r; depend=ref (ref None); father_func=ref (ref None); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
+    | FUN ln1=line id=ID "(" ")" ":" r=ret_type ln2=line                      { { id = id; args = []; ret = r; depend=ref (ref None); father_func=ref (ref None); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
     ;
 
 /* >>> Help */

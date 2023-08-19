@@ -10,11 +10,21 @@ open Symbol
 
 let curr_fun : func_decl list ref = ref []
 
+(* (caller,callee) tuple *)
+let sibling_dependacies : (func_decl * func_decl) list ref = ref []
+let father_child_dependancies : (func_decl * func_decl) list ref = ref []
 
 (* ------------------------------------------------- *)
 
+let update_depend depend i =
+  if (i < 1) then false else
+  match !depend with
+  | None          ->  depend := Some(i,i); true
+  | Some(min,max) ->  if (i < min) then (depend := Some(i,max); true)
+                      else (if (max < i) then (depend := Some(min,i); true) else false)
+
 let fun_def2decl (f:func) =
-  { id = f.id; args = f.args; ret = f.ret; param_acc_link = ref (f.param_acc_link); pos=f.pos }
+  { id = f.id; args = f.args; ret = f.ret; depend = ref f.depend; father_func = ref f.father_func; pos=f.pos }
 
 let sem_closing_scope () =
   let find_decl _ entr =
@@ -112,7 +122,8 @@ let rec get_lval_type (x:lvalue) =
   | EAssId(str,_)         ->  used str;
                               match lookup str with
                               | None -> error "Variable \"%s\" has not declared\n" str; exit 1
-                              | Some(Evar(v,_,_),i) -> if (i>0) then (v.to_ac_rec := true; !((List.hd !curr_fun).param_acc_link) := true); v.atype
+                              | Some(Evar(v,_,_),i) ->  let curr_fun = List.hd !curr_fun in
+                                                        if (i>0) then (v.to_ac_rec := true; ignore (update_depend !(curr_fun.depend) i)); v.atype
                               | _ -> failwith "get_lval_type"
 
 
@@ -122,19 +133,22 @@ and sem_expr (e:expr) =
   | EInt(i,_)               ->  EInteger([])
   | EChar(c,_)              ->  ECharacter([])
   | EFuncCall(id,elst,pos)  ->  let
-                                  fn = (match lookup id with
-                                      | Some(Efuncdef(decl, _),_) -> decl
-                                      | Some(Efundecl(decl, _),_) -> decl
-                                      | _ -> failwith "sem_expr")
+                                  fn,i = (match lookup id with
+                                        | Some(Efuncdef(decl, _),i) -> decl,i
+                                        | Some(Efundecl(decl, _),i) -> decl,i
+                                        | _ -> failwith "sem_expr")
                                 in
-                                  used id;
+                                  (used id;
+                                  let curr_fn = List.hd !curr_fun in
+                                  if ((i=0) && (curr_fn.id <> fn.id)) then father_child_dependancies := (curr_fn,fn)::!father_child_dependancies
+                                  else if (i=1) then sibling_dependacies := (curr_fn,fn)::!sibling_dependacies;
                                   if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
                                   then fn.ret
                                   else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
                                         print_file_lines filename fn.pos.line_start fn.pos.line_end;
                                         printf "\nUsed in:\n";
                                         print_file_lines filename pos.line_start pos.line_end;
-                                        exit 1)
+                                        exit 1))
   | EBinOp(bop,e1,e2,pos)   ->  let
                                   t1=(sem_expr e1) and t2=(sem_expr e2)
                                 in
@@ -169,19 +183,22 @@ let rec sem_stmt (s:stmt) =
   | EEmpty(pos)             ->  warning "Empty statement\n"; print_file_lines filename pos.line_start pos.line_end
   | EBlock(b,_)             ->  sem_block b
   | ECallFunc(x,y,pos)      ->  let
-                                  fn = match lookup x with
-                                      | Some(Efuncdef(decl,_),_) -> decl
-                                      | Some(Efundecl(decl,_),_) -> decl
-                                      | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
-                                                                  printf "Variable definition:\n";
-                                                                  print_file_lines filename var.pos.line_start var.pos.line_end;
-                                                                  printf "\nUsed as:\n";
-                                                                  print_file_lines filename pos.line_start pos.line_end;
-                                                                  exit 1
-                                      | None -> error "Function \"%s\" used but was not previously declared\n" x;
-                                                print_file_lines filename pos.line_start pos.line_end;
+                                  fn,i = match lookup x with
+                                        | Some(Efuncdef(decl,_),i) -> decl,i
+                                        | Some(Efundecl(decl,_),i) -> decl,i
+                                        | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
+                                                                    printf "Variable definition:\n";
+                                                                    print_file_lines filename var.pos.line_start var.pos.line_end;
+                                                                    printf "\nUsed as:\n";
+                                                                    print_file_lines filename pos.line_start pos.line_end;
+                                                                    exit 1
+                                        | None -> error "Function \"%s\" used but was not previously declared\n" x;
+                                                  print_file_lines filename pos.line_start pos.line_end;
                                                 exit 1
                                 in
+                                  let curr_fn = List.hd !curr_fun in
+                                  if ((i=0) && (curr_fn.id <> fn.id)) then father_child_dependancies := (curr_fn,fn)::!father_child_dependancies
+                                  else if (i=1) then sibling_dependacies := (curr_fn,fn)::!sibling_dependacies;
                                   if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
                                   then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
                                   else (error "Function argument types missmatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
@@ -236,7 +253,7 @@ let rec symbol_add_def (decl:local_def) =
   match decl with
   | EFuncDef(func) -> (match lookup_head func.id with
                       | None -> ()
-                      | Some(Efundecl(x,_)) ->  x.param_acc_link := func.param_acc_link; check_decl_def x func; remove_head func.id
+                      | Some(Efundecl(x,_)) ->  x.depend := func.depend; x.father_func := func.father_func; check_decl_def x func; remove_head func.id
                       | Some(Efuncdef(x,_)) ->  if (x.pos.line_start == 0)
                                                 then (error "Name conflict: internal function \"%s\" and function \"%s\"\n" x.id x.id;
                                                       printf "Function definition:\n";
@@ -313,9 +330,11 @@ let rec symbol_add_def (decl:local_def) =
 
 
 and sem_fun (f:func) =
-  curr_fun := (fun_def2decl f)::!curr_fun;
+  f.father_func := Some(List.hd !curr_fun);
+  let fun_decl = fun_def2decl f in
+  curr_fun := fun_decl::!curr_fun;
   open_scope ();
-  insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; param_acc_link=ref f.param_acc_link; pos=f.pos }, ref false));
+  insert f.id (Efuncdef(fun_decl, ref false));
   List.iter symbol_add_arg f.args;
   List.iter symbol_add_def f.local_defs;
   sem_block f.body;
@@ -324,26 +343,41 @@ and sem_fun (f:func) =
   close_scope ();
   curr_fun := List.tl !curr_fun
 
-let rec fill_gen_acc_link (f:func) =
-  let rec get_var_bools local_defs =
-    match local_defs with
-    | []              ->  []
-    | EVarDef(x)::tl  ->  !(x.to_ac_rec)::(get_var_bools tl)
-    | EFuncDef(x)::tl  -> fill_gen_acc_link f; get_var_bools tl
-    | hd::tl          ->  get_var_bools tl
-  in let rec get_bool lst1 lst2 =
-    match lst1, lst2 with
-    | [], []  -> false
-    | hd::tl, lst2 -> if hd then true else (get_bool tl lst2)
-    | lst1, hd::tl -> if hd then true else (get_bool lst1 tl)
-  in let var_bools = get_var_bools f.local_defs
-  in let param_bools = List.map (fun (x:func_args) -> !(x.to_ac_rec)) f.args
-  in f.gen_acc_link := (get_bool var_bools param_bools)
+
+(* Helper function for DEBUGGING perposes ONLY *)
+let rec print_depend f depth =
+  let string_depend depend =
+    match depend with
+    | None          ->  "None"
+    | Some(min,max) ->  "some(" ^ string_of_int min ^ "," ^ string_of_int max ^ ")"
+  in let dig depth loc_def =
+    match loc_def with
+    | EFuncDef(x) ->  print_depend x (depth+1)
+    | _           ->  ()
+  in (Printf.printf "%s%s : %s\n" (String.make (depth*2) ' ') f.id (string_depend !(f.depend)); List.iter (dig depth) (f.local_defs))
+
+
+let fix_depends () =
+  let rec fix_siblings (lst:(func_decl*func_decl) list) =
+    match lst with
+    | []            ->  false
+    | (fn1,fn2)::tl ->  match !(!(fn2.depend)) with
+                        | None          ->  fix_siblings tl
+                        | Some(min,max) ->  if (update_depend !(fn1.depend) min || update_depend !(fn1.depend) max)
+                                            then true else fix_siblings tl
+  in let rec fix_father_child (lst:(func_decl*func_decl) list) =
+    match lst with
+    | []            ->  false
+    | (fn1,fn2)::tl ->  match !(!(fn2.depend)) with
+                        | None          ->  fix_father_child tl
+                        | Some(min,max) ->  if (update_depend !(fn1.depend) (min-1) || update_depend !(fn1.depend) (max-1))
+                                            then true else fix_father_child tl
+  in let result = ref true
+  in while !result do
+    result := fix_siblings !sibling_dependacies || fix_father_child !father_child_dependancies
+  done
 
 let sem_main (f:func) =
   match f.args, f.ret with
-  | [], ENothing  ->  open_scope ();
-                      insert f.id (Efuncdef({ id = f.id; args = f.args; ret = f.ret; param_acc_link=ref f.param_acc_link; pos=f.pos }, ref true));
-                      sem_fun f;
-                      close_scope ()
+  | [], ENothing  ->  curr_fun := [fun_def2decl f]; sem_fun f; fix_depends ()(*; print_endline ("siblings : " ^ string_of_int (List.length !sibling_dependacies)); print_endline ("father-children : " ^ string_of_int (List.length !father_child_dependancies)); print_depend f 0*)
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and should return nothing\n" f.id; exit 1)

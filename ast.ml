@@ -70,32 +70,34 @@ and func_args = {
 }
 
 and func_decl = {
-  id              : string;
-  args            : func_args list;
-  ret             : types;
-  param_acc_link  : bool ref ref;   (* function takes a pointer to an 'activation record'/'access link' as a parameter *)
-  pos             : position;
+  id                : string;
+  args              : func_args list;
+  ret               : types;
+  depend            : (int * int) option ref ref;
+  father_func       : func_decl option ref ref;  (* may not be necessaey *)
+  pos               : position;
 }
 
 and func = {
-  id              : string;
-  args            : func_args list;
-  local_defs      : local_def list;
-  body            : block;
-  ret             : types;
-  gen_acc_link    : bool ref;   (* function generates an 'activation record'/'access link' *)
-  param_acc_link  : bool ref;   (* function takes a pointer to an 'activation record'/'access link' as a parameter *)
-  pos             : position;
+  id                : string;
+  args              : func_args list;
+  local_defs        : local_def list;
+  body              : block;
+  ret               : types;
+  gen_acc_link      : bool ref;   (* function generates an 'activation record'/'access link' *)
+  depend            : (int * int) option ref;
+  father_func       : func_decl option ref;
+  pos               : position;
 }
 
 
 (* ------------------------------------------------- *)
 
 let build_in_defs =
-  { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; param_acc_link=ref (ref false); pos=pos_zero }::
-  { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; param_acc_link=ref (ref false); pos=pos_zero }::
-  { id = "readInteger"; args = []; ret = EInteger([]); param_acc_link=ref (ref false); pos=pos_zero }::
-  { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); param_acc_link=ref (ref false); pos=pos_zero }::
+  { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "readInteger"; args = []; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   []
 
 

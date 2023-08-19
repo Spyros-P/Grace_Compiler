@@ -22,10 +22,10 @@ let build_in_table =
   let table =
     Hashtbl.create 10
   and defs =
-    { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; param_acc_link=ref (ref false); pos=pos_zero }::
-    { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; param_acc_link=ref (ref false); pos=pos_zero }::
-    { id = "readInteger"; args = []; ret = EInteger([]); param_acc_link=ref (ref false); pos=pos_zero }::
-    { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); param_acc_link=ref (ref false); pos=pos_zero }::
+    { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+    { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+    { id = "readInteger"; args = []; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+    { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
     []
   in List.iter (fun (def:func_decl) -> Hashtbl.add table def.id (Efuncdef(def, ref false)) ) defs; table
 
