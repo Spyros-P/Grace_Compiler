@@ -11,7 +11,7 @@ open Llvm_all_backends
 
 type entry =
   | Efun of func_decl * Llvm.llvalue
-  | Evar of var * (Llvm.llvalue -> Llvm.llvalue)
+  | Evar of var * (Llvm.llvalue -> Llvm.llvalue) * bool
 
 type llvm_info = {
   context          : Llvm.llcontext;
@@ -94,7 +94,15 @@ let rec get_struct_param (f:func_decl) lst =
 
 (* ------------------------------------------------- *)
 
-
+let is_ref atype =
+  match atype with
+  | EInteger(lst)   ->  (match lst with
+                        | []  ->  false
+                        | _   ->  true)
+  | ECharacter(lst) ->  (match lst with
+                        | []  ->  false
+                        | _   ->  true)
+  | _               ->  failwith "is_ref"
 
 (* the following functions are helpers for handling expressions *)
 
@@ -115,32 +123,48 @@ let codegen_bop info oper expr1 expr2 =
   | BopMod  ->  Llvm.build_srem expr1 expr2 "modtmp" info.builder
 
 
-let rec codegen_type info atype =
+let rec codegen_type info atype ref =
   match atype with
   | EInteger(lst)   ->  (match lst with
-                        | []      ->  info.i32
-                        | -1::tl  ->  (codegen_type info (EInteger(tl)))
-                        | hd::tl  ->  Llvm.array_type (codegen_type info (EInteger(tl))) hd)
+                        | []      ->  if ref then Llvm.pointer_type info.i32 else info.i32
+                        | -1::tl  ->  Llvm.pointer_type ((codegen_type info (EInteger(tl))) false)
+                        | hd::tl  ->  Llvm.array_type (codegen_type info (EInteger(tl)) false) hd)
   | ECharacter(lst) ->  (match lst with
-                        | []      ->  Llvm.i8_type info.context
-                        | -1::tl  ->  (codegen_type info (ECharacter(tl)))
-                        | hd::tl  ->  Llvm.array_type (codegen_type info (ECharacter(tl))) hd)
+                        | []      ->  if ref then Llvm.pointer_type (Llvm.i8_type info.context) else Llvm.i8_type info.context
+                        | -1::tl  ->  Llvm.pointer_type (codegen_type info (ECharacter(tl)) false)
+                        | hd::tl  ->  Llvm.array_type (codegen_type info (ECharacter(tl)) false) hd)
   | EString         ->  failwith "codegen_type"
   | ENothing        ->  Llvm.void_type info.context
-
+(*
+let rec pointer_degree info atype ref =
+  match atype with
+  | EInteger(lst)   ->  (match lst with
+                        | []      ->  if ref then 1 else 0
+                        | -1::tl  ->  1 + (pointer_degree info (EInteger(tl)) false)
+                        | hd::tl  ->  1 + (pointer_degree info (EInteger(tl)) false))
+  | ECharacter(lst) ->  (match lst with
+                        | []      ->  if ref then 1 else 0
+                        | -1::tl  ->  1 + (pointer_degree info (ECharacter(tl)) false)
+                        | hd::tl  ->  1 + (pointer_degree info (ECharacter(tl)) false))
+  | _               ->  failwith "codegen_type"
+*)
 let id_get_llvalue info id =
-  let rec get_ac_record ac_record i =
-    let rec walk ac_record i =
-      let llval = ref (Llvm.build_struct_gep ac_record 0 "prev_ac_record" info.builder) in
-        for i = i downto 2 do
-          llval := Llvm.build_load !llval "lval_tmp" info.builder;
-          llval := Llvm.build_struct_gep !llval 0 "prev_ac_record" info.builder
-        done; Llvm.build_load !llval "lval_tmp" info.builder
-    in (if (i > 0) then walk ac_record i else ac_record)
+  let rec walk (decl:func_decl) ac_link depth =
+    let father_decl = match !(!(decl.father_func)) with Some(x) -> x | _ -> failwith "id_get_llvalue"
+    in match !(!(decl.depend)), depth with
+    | _ , 1         ->  ac_link
+    | Some(1,_) , _ ->  walk father_decl (let prev_ac_rec = Llvm.build_load ac_link "prev_ac_rec" info.builder
+                                          in Llvm.build_struct_gep prev_ac_rec 0 "prev_acc_link" info.builder) (depth-1)
+    | Some(_,_) , _ ->  walk father_decl ac_link (depth-1)
+    | _ , _ -> failwith "id_get_llvalue"
+  in let func_decl = List.hd !fun_decls
+  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0
   in match lookup info id with
-  | Some(Efun(_,llval),i) ->  llval
-  | Some(Evar(_,llval),i) ->  llval info.the_nl(*(get_ac_record (List.hd !activation_records) i)*)
-  | _             ->  failwith "id_get_llvalue"
+  | Some(Efun(_,llval),i)       ->  (llval,false)
+  | Some(Evar(_,llval,ref),-1)  ->  (llval (info.the_nl),ref)
+  | Some(Evar(_,llval,ref),0)   ->  (llval (match List.hd !activation_records with Some(x) -> x | None -> info.the_nl),ref)
+  | Some(Evar(_,llval,ref),i)   ->  (llval (walk func_decl parent_acc_link i),ref)
+  | _                           ->  failwith "id_get_llvalue"
 
 
 let fun_get_struct_ptr info id =
@@ -166,9 +190,21 @@ let fun_get_struct_ptr info id =
                               | Some(d,_) ->  (fun x -> (walk func_decl parent_acc_link (d+i-1))::x))
   | _              ->  failwith "fun_get_struct_ptr"
 
-let rec codegen_lval info lval =
+let rec codegen_lval_for_array info lval =
   match lval with
-  | EAssId(id,_)            ->  id_get_llvalue info id
+  | EAssId(id,_)            ->  let llval,_ = id_get_llvalue info id in llval
+  | EAssArrEl(lval,expr,_)  ->  Llvm.build_gep (codegen_lval_for_array info lval)
+                                [| info.c32 0; (codegen_expr info expr) |]
+                                "pointer"
+                                info.builder
+  | _                       ->  failwith "codegen_lval_for_array"
+
+
+and codegen_lval_load info lval =
+  match lval with
+  | EAssId(id,_)            ->  let llval,ref = id_get_llvalue info id in
+                                let llval = Llvm.build_load llval "lval_tmp" info.builder in
+                                if ref then Llvm.build_load llval "lval_tmp" info.builder else llval
   | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
                                 let the_str = Llvm.declare_global str_type str info.the_module in
                                 Llvm.set_linkage Llvm.Linkage.Private the_str;
@@ -176,21 +212,13 @@ let rec codegen_lval info lval =
                                 Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
                                 Llvm.set_alignment 1 the_str;
                                 the_str
-  | EAssArrEl(lval,expr,_)  ->  Llvm.build_gep (codegen_lval info lval)
-                                [| info.c32 0; (codegen_expr info expr) |]
-                                "pointer"
-                                info.builder
-
-and codegen_lval_load info lval =
-  match lval with
-  | EAssId(id,_)            ->  let llval = id_get_llvalue info id in
-                                Llvm.build_load llval "lval_tmp" info.builder
-  | EAssString(str,_)       ->  (codegen_lval info lval)
-  | EAssArrEl(lval,expr,_)  ->  let llval = Llvm.build_gep (codegen_lval info lval)
-                                [| info.c32 0; (codegen_expr info expr) |]
+  | EAssArrEl(lval,expr,_)  ->  let llval = Llvm.build_gep (codegen_lval_for_array info lval)
+                                [| (codegen_expr info expr) |]
                                 "pointer"
                                 info.builder in
                                 Llvm.build_load llval "lval_tmp" info.builder
+
+
 
 and codegen_expr info ast =
   match ast with
@@ -209,20 +237,35 @@ and codegen_expr info ast =
                                       end
 
 
+
+
 and codegen_call_func info id params =
-  let rec walk params ref_lst =
+  let codegen_param_ref info lval =
+    match lval with
+    | EAssId(id,_)            ->  let llval,ref = id_get_llvalue info id in
+                                  if ref then Llvm.build_load llval "lval_tmp" info.builder else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "" info.builder
+    | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
+                                  let the_str = Llvm.declare_global str_type str info.the_module in
+                                  Llvm.set_linkage Llvm.Linkage.Private the_str;
+                                  Llvm.set_global_constant true the_str;
+                                  Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
+                                  Llvm.set_alignment 1 the_str;
+                                  Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder
+    | EAssArrEl(lval,expr,_)  ->  Llvm.build_gep (codegen_lval_for_array info lval)
+                                  [| info.c32 0; (codegen_expr info expr) |]
+                                  "pointer"
+                                  info.builder
+  in let rec walk params ref_lst =
     (let get_llval param ref =
       if (ref == false) then (codegen_expr info param)
       else (match param with
-            | ELVal(lval, _)  ->  let llval = codegen_lval info lval in
-                                  (match lval with EAssId(_,_) -> llval
-                                  | _ -> Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "" info.builder)
+            | ELVal(lval, _)  ->  codegen_param_ref info lval
             | _               ->  failwith "codegen_call_func") in
     match params, ref_lst with
     | [], []                              ->  []
     | param::rest_params, ref::rest_refs  ->  (get_llval param ref) :: (walk rest_params rest_refs)
-    | _, _                                -> failwith "codegen_call_func") in
-  let func = id_get_llvalue info id in
+    | _, _                                ->  failwith "codegen_call_func") in
+  let func,_ = id_get_llvalue info id in
   let fix = fun_get_struct_ptr info id in
   let ref_lst = (try Hashtbl.find fun_refs func
                 with Not_found ->  failwith "codegen_call_func") in
@@ -267,8 +310,16 @@ let rec codegen_cond info cond =
 
 
 let codegen_ass info lval expr =
-  let llval = codegen_lval info lval in
-  ignore (Llvm.build_store expr llval info.builder)
+  match lval with
+  | EAssId(id,_)            ->  let llval,ref = id_get_llvalue info id in
+                                let llval = if ref then Llvm.build_load llval "lval_tmp" info.builder else llval in
+                                ignore (Llvm.build_store expr llval info.builder)
+  | EAssString(str,_)       ->  failwith "codegen_ass"
+  | EAssArrEl(lval,e,_)     ->  let llval = Llvm.build_gep (codegen_lval_for_array info lval)
+                                [| info.c32 0; (codegen_expr info e) |]
+                                "pointer"
+                                info.builder in
+                                ignore (Llvm.build_store expr llval info.builder)
 
 let rec codegen_stmt info statement =
   match statement with
@@ -344,8 +395,7 @@ and main_codegen_block info block =
 
 
 let codegen_param_type info param =
-  if param.ref then Llvm.pointer_type (codegen_type info param.atype)
-  else (codegen_type info param.atype)
+  codegen_type info param.atype param.ref
 
 let codegen_fun_array_args info args (f_decl:func_decl) =
   let params = List.map (codegen_param_type info) args
@@ -358,36 +408,36 @@ let codegen_activation_record info func ffunc =
     match local_defs with
     | []              ->  []
     | EVarDef(x)::tl  ->  if !(x.to_ac_rec) then x::(get_ac_rec_vars tl)
-                          else let llval = Llvm.build_alloca (codegen_type info x.atype) x.id info.builder
+                          else let llval = Llvm.build_alloca (codegen_type info x.atype false) x.id info.builder
                           in let get_var =  (fun _ -> llval)
-                          in insert x.id (Evar(x,get_var)); get_ac_rec_vars tl
+                          in insert x.id (Evar(x,get_var,is_ref x.atype)); get_ac_rec_vars tl
     | hd::tl          ->  get_ac_rec_vars tl
   in let rec get_ac_rec_params local_defs n =
     match local_defs with
     | []          ->  []
     | hd::tl  ->  if !(hd.to_ac_rec) then hd::(get_ac_rec_params tl (n+1))
-                  else let llval = Llvm.build_alloca (codegen_type info hd.atype) hd.id info.builder
-                  in let get_param =  (fun _ -> llval) in Llvm.build_store (Llvm.param ffunc n) llval info.builder;
-                  insert hd.id (Evar({id=hd.id;atype=hd.atype;to_ac_rec=hd.to_ac_rec;pos=hd.pos},get_param)); get_ac_rec_params tl (n+1)
+                  else let llval = Llvm.build_alloca (codegen_param_type info hd) hd.id info.builder
+                  in let get_param =  (fun _ -> llval) in ignore (Llvm.build_store (Llvm.param ffunc n) llval info.builder);
+                  insert hd.id (Evar({id=hd.id;atype=hd.atype;to_ac_rec=hd.to_ac_rec;pos=hd.pos},get_param,hd.ref)); get_ac_rec_params tl (n+1)
   in let rec insert_activation_record info ac_record (params:func_args list) (vars:var list) n =
     match params, vars with
     | [], []      ->  ()
     | [], hd::tl  ->  let get_var = (fun llval -> Llvm.build_struct_gep llval n "ac_record_arg" info.builder)
-                      in insert hd.id (Evar(hd,get_var)); insert_activation_record info ac_record params tl (n+1)
+                      in insert hd.id (Evar(hd,get_var,is_ref hd.atype)); insert_activation_record info ac_record params tl (n+1)
     | hd::tl, _   ->  let get_param = (fun llval -> Llvm.build_struct_gep llval n "ac_record_var" info.builder)
                       in ignore (Llvm.build_store (Llvm.param ffunc n) (get_param ac_record) info.builder);
-                      insert hd.id (Evar({id=hd.id;atype=hd.atype;to_ac_rec=hd.to_ac_rec;pos=hd.pos},get_param)); insert_activation_record info ac_record tl vars (n+1)
+                      insert hd.id (Evar({id=hd.id;atype=hd.atype;to_ac_rec=hd.to_ac_rec;pos=hd.pos},get_param,hd.ref)); insert_activation_record info ac_record tl vars (n+1)
   in let vars = get_ac_rec_vars func.local_defs
   in let params = get_ac_rec_params func.args (if !(func.depend) = None then 0 else 1)
-  in let vars_types = List.map (fun (x:var) -> codegen_type info x.atype) vars
-  in let params_types = List.map (codegen_param_type info) params
-  in let struct_contents = if !(func.gen_acc_link) then (Llvm.pointer_type (get_struct_param (fun_def2decl func) !struct_types))::(List.append params_types vars_types) else List.append params_types vars_types
-  in if (List.length struct_contents <> 0) then (
-        let struct_type = Llvm.struct_type info.context (Array.of_list struct_contents)
+  in if !(func.gen_acc_link) then (
+        let vars_types = List.map (fun (x:var) -> codegen_type info x.atype false) vars
+        in let params_types = List.map (codegen_param_type info) params
+        in let struct_contents = if !(func.pass_acc_link) then (Llvm.pointer_type (get_struct_param (fun_def2decl func) !struct_types))::(List.append params_types vars_types) else List.append params_types vars_types
+        in let struct_type = Llvm.struct_type info.context (Array.of_list struct_contents)
         in let activation_record = Llvm.build_alloca struct_type "activation_record" info.builder
-        in if !(func.gen_acc_link)  then (let struct_first_element = Llvm.build_struct_gep activation_record 0 "prev_ac_record" info.builder;
+        in if !(func.pass_acc_link)  then (let struct_first_element = Llvm.build_struct_gep activation_record 0 "prev_ac_record" info.builder;
                                           in ignore (Llvm.build_store (Llvm.param ffunc 0) struct_first_element info.builder));
-        insert_activation_record info activation_record params vars 1;
+        insert_activation_record info activation_record params vars (if !(func.pass_acc_link) then 1 else 0);
         struct_types :=  Some(struct_type)::(!struct_types);
         activation_records :=  Some(activation_record)::(!activation_records)
   ) else (struct_types :=  None::(!struct_types); activation_records :=  None::(!activation_records))
@@ -395,7 +445,7 @@ let codegen_activation_record info func ffunc =
 
 let rec codegen_localdef info def =
   match def with
-  | EFuncDef(func)        ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret) (codegen_fun_array_args info func.args (fun_def2decl func)) in (* fix array *)
+  | EFuncDef(func)        ->  (Printf.printf "%s := gen : %s\n" func.id (string_of_bool !(func.gen_acc_link)));let ffunc_type = Llvm.function_type (codegen_type info func.ret false) (codegen_fun_array_args info func.args (fun_def2decl func)) in (* fix array *)
                               let ffunc = Llvm.declare_function func.id ffunc_type info.the_module in
                               let bb = Llvm.append_block info.context "entry" ffunc in
                               insert func.id (Efun(fun_def2decl func,ffunc));
@@ -423,14 +473,14 @@ let rec main_codegen_localdef info def =
 match def with
 | EFuncDef(func)        ->  codegen_localdef info def
 | EFuncDecl(func_decl)  ->  codegen_localdef info def
-| EVarDef(var)          ->  let ltype = codegen_type info var.atype in
+| EVarDef(var)          ->  let ltype = codegen_type info var.atype false in
                             let llval = Llvm.declare_global ltype var.id info.the_module in
                             Llvm.set_linkage Llvm.Linkage.Private llval;
                             Llvm.set_initializer (Llvm.const_null ltype) llval;
-                            insert var.id (Evar(var,(fun _ -> llval)))
+                            insert var.id (Evar(var,(fun _ -> llval),is_ref var.atype))
 
 let codegen_build_in_decl info (decl:func_decl) =
-  let ffunc_type = Llvm.function_type (codegen_type info decl.ret) (codegen_fun_array_args info decl.args decl) in (* fix array *)
+  let ffunc_type = Llvm.function_type (codegen_type info decl.ret false) (codegen_fun_array_args info decl.args decl) in (* fix array *)
   let ffunc = Llvm.declare_function decl.id ffunc_type info.the_module in
   Hashtbl.add info.build_in_table decl.id (Efun(decl,ffunc));
   Hashtbl.add fun_refs ffunc (List.map (fun arg -> arg.ref) decl.args)
@@ -456,7 +506,7 @@ let llvm_compile_and_dump main_func =
     add_dead_store_elimination; add_loop_vectorize; add_slp_vectorize;
     add_strip_dead_prototypes; add_global_dce; add_cfg_simplification;
   ] in
-  if true then List.iter (fun f -> f pm) optimizations;
+  if false then List.iter (fun f -> f pm) optimizations;
   (* Initialize types *)
   let i8 = Llvm.i8_type context in
   let i32 = Llvm.i32_type context in
