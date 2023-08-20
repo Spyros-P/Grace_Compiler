@@ -1,4 +1,5 @@
 open Ast
+open Printf
 open Llvm
 open Llvm_ipo
 open Llvm_vectorize
@@ -30,13 +31,30 @@ type llvm_info = {
 
 
 
-
+(*
+   symbol table:
+    - Key: a string that is the name of the variable being looked up.
+    - Value: a function that knows which entry of the activation record
+             corresponds to the identifier that is being looked up. It is
+             basically a "getter".
+*)
 let symbol_table : (string, entry) Hashtbl.t list ref = ref []
 
+(*
+   fun_refs:
+    - Key: an llvalue that represents a function.
+    - Value: a list of booleans that corresponds to the function's parameters.
+             true if the parameter is passed by reference, otherwise false.
+*)
 let fun_refs    : (Llvm.llvalue, bool list) Hashtbl.t =  Hashtbl.create 10
 
 let fun_decls : func_decl list ref = ref []
-
+(*
+    struct_types:
+      A list of the structs that have been created in order to
+      accomodate nested functions. Click on the following link for an explanation:
+      https://stackoverflow.com/questions/55736390/llvm-how-to-make-a-nested-function-see-an-outside-functions-variables
+*)
 let struct_types : lltype option list ref = ref []
 let activation_records : llvalue option list ref = ref []
 
@@ -62,12 +80,12 @@ let lookup info id =
   let rec walk id st n =
     match st with
     | []          ->  None
-    | cs::[]      ->  (try
+    | cs::[]      ->  (try (* remember that the end of the list/stack is the global scope *)
                         Some (Hashtbl.find cs id, -1)
-                      with Not_found -> None)
+                       with Not_found -> None)
     | cs::scopes  ->  (try
                         Some (Hashtbl.find cs id, n)
-                      with Not_found -> walk id scopes (n+1))
+                       with Not_found -> walk id scopes (n+1))
   in 
     try Some(Hashtbl.find info.build_in_table id, -1)
     with Not_found -> walk id !symbol_table 0
@@ -391,9 +409,6 @@ and main_codegen_block info block =
   match block with
   | EListStmt(stmt_list, _) -> List.iter (main_codegen_stmt info) stmt_list
 
-(* define main - compile and dump function *)
-
-
 let codegen_param_type info param =
   codegen_type info param.atype param.ref
 
@@ -422,19 +437,32 @@ let codegen_activation_record info func ffunc =
   in let rec insert_activation_record info ac_record (params:func_args list) (vars:var list) n =
     match params, vars with
     | [], []      ->  ()
+    (* the following getters take an llvalue and return a pointer to its n-th position *)
+    (* the llvalue that is going to be passed to it will be the current activation record *)
     | [], hd::tl  ->  let get_var = (fun llval -> Llvm.build_struct_gep llval n "ac_record_arg" info.builder)
-                      in insert hd.id (Evar(hd,get_var,is_ref hd.atype)); insert_activation_record info ac_record params tl (n+1)
+                      in (* no need to store the variables, they will be stored when assignments occur. *)
+                      insert hd.id (Evar(hd,get_var,is_ref hd.atype));
+                      (* insert the getter to the current scope. *)
+                      insert_activation_record info ac_record params tl (n+1)
     | hd::tl, _   ->  let get_param = (fun llval -> Llvm.build_struct_gep llval n "ac_record_var" info.builder)
-                      in ignore (Llvm.build_store (Llvm.param ffunc n) (get_param ac_record) info.builder);
-                      insert hd.id (Evar({id=hd.id;atype=hd.atype;to_ac_rec=hd.to_ac_rec;pos=hd.pos},get_param,hd.ref)); insert_activation_record info ac_record tl vars (n+1)
+                      in (* don't forget to store the function's parameters. *)
+                      ignore (Llvm.build_store (Llvm.param ffunc n) (get_param ac_record) info.builder);
+                      insert hd.id (Evar({id=hd.id;atype=hd.atype;to_ac_rec=hd.to_ac_rec;pos=hd.pos},get_param,hd.ref));
+                      (* insert the getter to the current scope. *)
+                      insert_activation_record info ac_record tl vars (n+1)
+  (* start creating the activation record *)
   in let vars = get_ac_rec_vars func.local_defs
   in let params = get_ac_rec_params func.args (if !(func.depend) = None then 0 else 1)
   in if !(func.gen_acc_link) then (
+        (* get the types of the function variables and parameters that will be stored in the activation record *)
         let vars_types = List.map (fun (x:var) -> codegen_type info x.atype false) vars
         in let params_types = List.map (codegen_param_type info) params
+        (* create the contents of the activation record and its type *)
         in let struct_contents = if !(func.pass_acc_link) then (Llvm.pointer_type (get_struct_param (fun_def2decl func) !struct_types))::(List.append params_types vars_types) else List.append params_types vars_types
         in let struct_type = Llvm.struct_type info.context (Array.of_list struct_contents)
         in let activation_record = Llvm.build_alloca struct_type "activation_record" info.builder
+        (* if pass_acc_link flag is set to true, then the activation record will contain
+           an access link for accessing functions' activation records with lower nesting depth. *)
         in if !(func.pass_acc_link)  then (let struct_first_element = Llvm.build_struct_gep activation_record 0 "prev_ac_record" info.builder;
                                           in ignore (Llvm.build_store (Llvm.param ffunc 0) struct_first_element info.builder));
         insert_activation_record info activation_record params vars (if !(func.pass_acc_link) then 1 else 0);
@@ -461,7 +489,7 @@ let rec codegen_localdef info def =
                               (match func.ret with
                               | ENothing  ->  ignore (Llvm.build_ret_void info.builder)
                               | _         ->  ignore (Llvm.build_ret (info.c32 0) info.builder));
-                              info.funcs := List.tl !(info.funcs);
+                              info.funcs   := List.tl !(info.funcs);
                               struct_types := List.tl !struct_types;
                               activation_records := List.tl !activation_records;
                               fun_decls := List.tl !fun_decls;
@@ -485,6 +513,8 @@ let codegen_build_in_decl info (decl:func_decl) =
   Hashtbl.add info.build_in_table decl.id (Efun(decl,ffunc));
   Hashtbl.add fun_refs ffunc (List.map (fun arg -> arg.ref) decl.args)
 
+
+(* define main - compile and dump function *)
 let llvm_compile_and_dump main_func =
   (* Initialize *)
   Llvm_all_backends.initialize ();
