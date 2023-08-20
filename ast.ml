@@ -95,10 +95,22 @@ and func = {
 (* ------------------------------------------------- *)
 
 let build_in_defs =
-  { id = "writeString"; args = { id="str"; atype=ECharacter([-1]); ref=true; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
-  { id = "writeInteger"; args = { id="i"; atype=EInteger([]); ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
-  { id = "readInteger"; args = []; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
-  { id = "strlen"; args = { id="str"; atype=ECharacter([-1]); ref=true; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]); depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "writeInteger"; args = { id="i";   atype=EInteger([]);     ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "writeChar";    args = { id="c";   atype=ECharacter([]);   ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "writeString";  args = { id="str"; atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "readInteger";  args = []; ret = EInteger([]);     depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "readChar";     args = []; ret = ECharacter([]);   depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "readString";   args = {  id="size"; atype=EInteger([]);     ref=false; to_ac_rec=ref false; pos=pos_zero }::
+                                [{ id="str";  atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }];    ret = ENothing;        depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "ascii";        args = {  id="c";    atype=ECharacter([]);   ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]);    depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "chr";          args = {  id="i";    atype=EInteger([]);     ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ECharacter([]);  depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "strlen";       args = {  id="str";  atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }::[]; ret = EInteger([]);    depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "strcmp";       args = {  id="str1"; atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }::
+                                [{ id="str2"; atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }];    ret = EInteger([]);    depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "strcpy";       args = {  id="trg";  atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }::
+                                [{ id="dst";  atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }];    ret = ENothing;        depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
+  { id = "strcat";       args = {  id="trg";  atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }::
+                                [{ id="dst";  atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }];    ret = ENothing;        depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   []
 
 
