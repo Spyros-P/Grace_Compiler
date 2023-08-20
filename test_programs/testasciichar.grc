@@ -1,0 +1,15 @@
+$ This works with no errors.
+
+fun main(): nothing
+    var mychar: char;
+    var myascii: int;
+{
+    mychar  <- 'A';
+    myascii <- ascii(mychar);
+    writeString("The ascii value of ");
+    writeChar(mychar);
+    writeString(" is ");
+    writeInteger(myascii);
+    writeChar('\n');
+    return;
+}

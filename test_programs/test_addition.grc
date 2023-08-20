@@ -1,0 +1,13 @@
+fun main() : nothing
+    var x: int;
+
+{
+    x <- 0;
+    writeString("x = ");
+    writeInteger(x);
+    writeString(" (before inc)\n");
+    x <- x + 5;
+    writeString("x = ");
+    writeInteger(x);
+    writeString(" (after inc)\n");
+}

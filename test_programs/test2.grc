@@ -1,0 +1,22 @@
+fun main() : nothing 
+    fun inc(y: int): nothing
+        fun hidden(ref y : int) : nothing
+        {
+            y <- y+1;
+        }
+    {
+        hidden(y);
+    }
+
+    var x   : int;
+
+{
+    x <- 0;
+    writeString("x = ");
+    writeInteger(x);
+    writeString(" (before inc)\n");
+    inc(x);
+    writeString("x = ");
+    writeInteger(x);
+    writeString(" (after inc)\n");
+}

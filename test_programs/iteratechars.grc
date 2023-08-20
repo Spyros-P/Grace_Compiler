@@ -1,0 +1,25 @@
+$ This works. Therefore the ascii and chr functions work.
+
+fun main(): nothing
+    var mychar: char;
+    var myascii: int;
+    var limit: int;
+    var counter: int;
+{
+    limit   <- 26;
+    counter <- 0;
+    mychar  <- 'A';
+    myascii <- ascii(mychar);
+    while counter < limit do
+    {
+        writeString("The ASCII code for ");
+        writeChar(mychar);
+        writeString(" is ");
+        writeInteger(myascii);
+        writeChar('\n');
+        mychar <- chr(myascii + 1);
+        myascii <- ascii(mychar);
+        counter <- counter + 1;
+    }
+    return;
+}
