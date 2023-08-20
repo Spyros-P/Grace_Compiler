@@ -1,0 +1,29 @@
+$ I believe this should work.
+
+fun main(): nothing
+    fun printArray(ref array: int[];  size: int): nothing
+        var counter: int;
+    {
+        counter <- 0;
+        writeChar('[');
+        while counter < size do
+        {
+            writeInteger(array[counter]);
+            if counter < size - 1 then
+            {
+                writeChar(',');
+            }
+            counter <- counter + 1;
+        }
+        writeString("]\n");
+    }
+    var arr: int[5];
+{
+    arr[0] <- 15;
+    arr[1] <- 24;
+    arr[2] <- 33;
+    arr[3] <- 42;
+    arr[4] <- 51;
+    printArray(arr, 5);
+    return;
+}
