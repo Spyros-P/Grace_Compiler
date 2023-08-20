@@ -171,12 +171,12 @@ let id_get_llvalue info id =
     let father_decl = match !(!(decl.father_func)) with Some(x) -> x | _ -> failwith "id_get_llvalue"
     in match !(!(decl.depend)), depth with
     | _ , 1         ->  ac_link
-    | Some(1,_) , _ ->  walk father_decl (let prev_ac_rec = Llvm.build_load ac_link "prev_ac_rec" info.builder
-                                          in Llvm.build_struct_gep prev_ac_rec 0 "prev_acc_link" info.builder) (depth-1)
+    | Some(1,_) , _ ->  walk father_decl (let prev_ac_rec = Llvm.build_struct_gep ac_link 0 "prev_acc_link" info.builder
+                                          in Llvm.build_load prev_ac_rec "prev_ac_rec" info.builder) (depth-1)
     | Some(_,_) , _ ->  walk father_decl ac_link (depth-1)
     | _ , _ -> failwith "id_get_llvalue"
   in let func_decl = List.hd !fun_decls
-  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0
+  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0 (* check code line for potention hazard*)
   in match lookup info id with
   | Some(Efun(_,llval),i)       ->  (llval,false)
   | Some(Evar(_,llval,ref),-1)  ->  (llval (info.the_nl),ref)
@@ -190,8 +190,8 @@ let fun_get_struct_ptr info id =
     let father_decl = match !(!(decl.father_func)) with Some(x) -> x | _ -> failwith "fun_get_struct_ptr"
     in match !(!(decl.depend)), depth with
     | _ , 1         ->  ac_link
-    | Some(1,_) , _ ->  walk father_decl (let prev_ac_rec = Llvm.build_load ac_link "prev_ac_rec" info.builder
-                                          in Llvm.build_struct_gep prev_ac_rec 0 "prev_acc_link" info.builder) (depth-1)
+    | Some(1,_) , _ ->  walk father_decl (let prev_ac_rec = Llvm.build_struct_gep ac_link 0 "prev_acc_link" info.builder
+                                          in Llvm.build_load prev_ac_rec "prev_ac_rec" info.builder) (depth-1)
     | Some(_,_) , _ ->  walk father_decl ac_link (depth-1)
     | _ , _ -> failwith "fun_get_struct_ptr"
   in let func_decl = List.hd !fun_decls
@@ -261,7 +261,7 @@ and codegen_call_func info id params =
   let codegen_param_ref info lval =
     match lval with
     | EAssId(id,_)            ->  let llval,ref = id_get_llvalue info id in
-                                  if ref then Llvm.build_load llval "lval_tmp" info.builder else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "" info.builder
+                                  if ref then Llvm.build_load llval "lval_tmp" info.builder else llval
     | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
                                   let the_str = Llvm.declare_global str_type str info.the_module in
                                   Llvm.set_linkage Llvm.Linkage.Private the_str;
