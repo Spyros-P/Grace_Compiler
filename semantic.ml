@@ -367,29 +367,35 @@ let fix_depends () =
     result := fix_caller_callee !caller_callee_dependancies
   done
 
-let rec fill_pass_acc_link f =
-  let rec filter_defs loc_defs =
+let rec fill_rest_fields f =
+  let rec check_params args =
+    match args with
+    | [] -> ()
+    | hd::tl -> if !(hd.to_ac_rec) then f.gen_acc_link := true else check_params tl
+  in let rec filter_defs_calc_gen loc_defs =
     match loc_defs with
     | [] -> []
-    | EFuncDef(x)::tl -> x::(filter_defs tl)
-    | _::tl -> filter_defs tl
+    | EFuncDef(x)::tl -> x::(filter_defs_calc_gen tl)
+    | EVarDef(x)::tl -> if !(x.to_ac_rec) then f.gen_acc_link := true; filter_defs_calc_gen tl
+    | _::tl -> filter_defs_calc_gen tl
   in let rec store_acc_link defs =
     match defs with
     | [] -> false
     | hd::tl -> (match !(hd.depend) with
                 | Some(1,i) -> if i>1 then true else store_acc_link tl
                 | _ -> store_acc_link tl)
-  in let defs = filter_defs f.local_defs
+  in check_params f.args;
+  let defs = filter_defs_calc_gen f.local_defs
   in f.pass_acc_link := store_acc_link defs;
-  List.iter fill_pass_acc_link defs
+  List.iter fill_rest_fields defs
 
 let sem_main (f:func) =
   match f.args, f.ret with
   | [], ENothing  ->  curr_fun := [fun_def2decl f];
                       sem_fun f;
                       fix_depends ();
-                      fill_pass_acc_link f(*;
-                      print_endline ("siblings : " ^ string_of_int (List.length !sibling_dependacies));
-                      print_endline ("father-children : " ^ string_of_int (List.length !father_child_dependancies));
-                      print_depend f 0*)
+                      fill_rest_fields f;
+                      (*print_endline ("siblings : " ^ string_of_int (List.length !sibling_dependacies));
+                      print_endline ("father-children : " ^ string_of_int (List.length !father_child_dependancies));*)
+                      print_depend f 0
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and should return nothing\n" f.id; exit 1)
