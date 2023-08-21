@@ -20,18 +20,19 @@ type entry =
   | Evar of var * (Llvm.llvalue -> Llvm.llvalue) * var_type
 
 type llvm_info = {
-  context          : Llvm.llcontext;
-  the_module       : Llvm.llmodule;
-  builder          : Llvm.llbuilder;
-  i8               : Llvm.lltype;
-  i32              : Llvm.lltype;
-  i64              : Llvm.lltype;
-  c32              : int -> Llvm.llvalue;
-  c64              : int -> Llvm.llvalue;
-  i8_ptr_trash     : llvalue;
-  the_nl           : Llvm.llvalue;
-  funcs            : Llvm.llvalue list ref;
-  build_in_table   : (string, entry) Hashtbl.t;
+  context         :   Llvm.llcontext;
+  the_module      :   Llvm.llmodule;
+  builder         :   Llvm.llbuilder;
+  i8              :   Llvm.lltype;
+  i32             :   Llvm.lltype;
+  i64             :   Llvm.lltype;
+  c32             :   int -> Llvm.llvalue;
+  c64             :   int -> Llvm.llvalue;
+  i8_ptr_trash    :   llvalue;
+  the_nl          :   Llvm.llvalue;
+  funcs           :   Llvm.llvalue list ref;
+  build_in_table  :   (string, entry) Hashtbl.t;
+  count_funs      :   int ref;
 }
 
 
@@ -488,12 +489,16 @@ let codegen_activation_record info func ffunc =
 
 let rec codegen_localdef info def =
   match def with
-  | EFuncDef(func)        ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret false) (codegen_fun_array_args info func.args (fun_def2decl func)) in (* fix array *)
-                              let ffunc = Llvm.declare_function func.id ffunc_type info.the_module in
-                              let bb = Llvm.append_block info.context "entry" ffunc in
-                              insert func.id (Efun(fun_def2decl func,ffunc));
-                              Hashtbl.add fun_refs ffunc (List.map (fun x -> x.ref) func.args);
-                              fun_decls := (fun_def2decl func)::!fun_decls;
+  | EFuncDef(func)        ->  let ffunc = match lookup info func.id with
+                                          | None  ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret false) (codegen_fun_array_args info func.args (fun_def2decl func)) in
+                                                      let ffunc = Llvm.declare_function (func.id ^ "_$" ^ (string_of_int !(info.count_funs))) ffunc_type info.the_module in
+                                                      info.count_funs := !(info.count_funs)+1;
+                                                      insert func.id (Efun(fun_def2decl func,ffunc));
+                                                      Hashtbl.add fun_refs ffunc (List.map (fun x -> x.ref) func.args);
+                                                      fun_decls := (fun_def2decl func)::!fun_decls; ffunc
+                                          | Some(Efun(_,ffunc),_) ->  ffunc
+                                          | _               ->  failwith "codegen_localdef"
+                              in let bb = Llvm.append_block info.context "entry" ffunc in
                               open_scope ();
                               Llvm.position_at_end bb info.builder;
                               codegen_activation_record info func ffunc;
@@ -509,7 +514,12 @@ let rec codegen_localdef info def =
                               activation_records := List.tl !activation_records;
                               fun_decls := List.tl !fun_decls;
                               close_scope ()
-  | EFuncDecl(func_decl)  ->  failwith "codegen_localdef"
+  | EFuncDecl(func_decl)  ->  let ffunc_type = Llvm.function_type (codegen_type info func_decl.ret false) (codegen_fun_array_args info func_decl.args func_decl) in
+                              let ffunc = Llvm.declare_function (func_decl.id ^ "_$" ^ (string_of_int !(info.count_funs))) ffunc_type info.the_module in
+                              info.count_funs := !(info.count_funs)+1;
+                              insert func_decl.id (Efun(func_decl,ffunc));
+                              Hashtbl.add fun_refs ffunc (List.map (fun x -> x.ref) func_decl.args);
+                              fun_decls := func_decl::!fun_decls
   | EVarDef(var)          ->  ()
 
 let rec main_codegen_localdef info def =
@@ -590,6 +600,7 @@ let llvm_compile_and_dump main_func =
     the_nl           = the_nl;
     funcs            = ref [main];
     build_in_table   = build_in_table;
+    count_funs       = ref 1;
   } in
   fun_decls := [fun_def2decl main_func];
   List.iter (codegen_build_in_decl info) build_in_defs;
