@@ -1,0 +1,13 @@
+fun simpleAssigment () : nothing
+   var i : char;
+fun helper (ref x : char[]) : nothing
+      {
+         i <- x[2];
+         writeChar(x[2]);
+         writeChar('\n');
+      }
+   
+   { 
+      helper("Hello");
+   } 
+

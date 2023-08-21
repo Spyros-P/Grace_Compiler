@@ -1,0 +1,10 @@
+fun main(): nothing
+
+  var a: char[10];
+
+
+
+{
+    a[1] <- 'a';
+    writeString("hey\n");
+}

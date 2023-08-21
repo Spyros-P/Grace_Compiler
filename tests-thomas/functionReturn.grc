@@ -1,0 +1,17 @@
+fun simpleAssigment () : nothing
+   var i : int;
+fun helper (ref x : int) : int
+      {
+         x <- 6 + x;
+         return x;
+      }
+   
+   { 
+      i <-2;
+      writeInteger(helper(i));
+      writeChar('\n');
+      writeInteger(i);
+      writeChar('\n');
+
+   } 
+
