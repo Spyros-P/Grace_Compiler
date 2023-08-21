@@ -1,0 +1,40 @@
+$ I believe this should be working.
+$ We get an llc error: store operand must be a pointer.
+
+fun main(): nothing
+    var alphabet: char[27];
+    var capitals: char[27];
+    var tempchar: char;
+    var tempascii: int;
+    var limit: int;
+    var counter: int;
+{
+    alphabet <- "abcdefghijklmnopqrstuvwxyz";
+    capitals <- "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    limit <- 26;
+    counter <- 0;
+    writeString("Testing lowercase alphabet:\n");
+    while counter < limit do {
+        tempchar <- alphabet[counter];
+        tempascii <- ascii(tempchar);
+        writeString("The ASCII value of ");
+        writeChar(tempchar);
+        writeString(" is ");
+        writeInteger(tempascii);
+        writeString("\n");
+        counter <- counter + 1;
+    }
+    writeString("Testing uppercase alphabet:\n");
+    counter <- 0;
+    while counter < limit do {
+        tempchar <- capitals[counter];
+        tempascii <- ascii(tempchar);
+        writeString("The ASCII value of ");
+        writeChar(tempchar);
+        writeString(" is ");
+        writeInteger(tempascii);
+        writeString("\n");
+        counter <- counter + 1;
+    }
+    return;
+}
