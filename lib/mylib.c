@@ -6,11 +6,11 @@ void writeInteger(int32_t num) {
     printf("%d", num);
 }
 
-void writeChar(char c) {
+void writeChar(int8_t c) {
     printf("%c", c);
 }
 
-void writeString(char *str) {
+void writeString(int8_t *str) {
     printf("%s", str);
 }
 
@@ -26,7 +26,7 @@ int8_t readChar() {
     return c;
 }
 
-void readString(int32_t size, char *str) {
+void readString(int32_t size, int8_t *str) {
     scanf("%s", str);
     str[size-1] = '\0';
 }
@@ -39,7 +39,7 @@ int8_t chr(int32_t n) {
     return (int8_t) n;
 }
 
-int32_t strlen(char *str) {
+int32_t strlen(int8_t *str) {
     int32_t counter = 0;
     while (str[counter] != '\0') {
         counter++;
@@ -47,7 +47,7 @@ int32_t strlen(char *str) {
     return counter;
 }
 
-int32_t strcmp(char *str1, char *str2) {
+int32_t strcmp(int8_t *str1, int8_t *str2) {
     int32_t i = 0;
     while (str1[i] != '\0' && str2[i] != '\0') {
         if (str1[i] != str2[i]) {
@@ -58,7 +58,7 @@ int32_t strcmp(char *str1, char *str2) {
     return str1[i] - str2[i];
 }
 
-void strcpy(char *dest, char *src) {
+void strcpy(int8_t *dest, int8_t *src) {
     int32_t i = 0;
     while (src[i] != '\0') {
         dest[i] = src[i];
@@ -67,7 +67,7 @@ void strcpy(char *dest, char *src) {
     dest[i] = '\0';
 }
 
-void strcat(char *dest, char *src) {
+void strcat(int8_t *dest, int8_t *src) {
     int32_t i = 0;
     int32_t j = 0;
     while (dest[i] != '\0') {
