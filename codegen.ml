@@ -160,19 +160,7 @@ let rec codegen_type info atype ref =
                         | hd::tl  ->  Llvm.array_type (codegen_type info (ECharacter(tl)) false) hd)
   | EString         ->  failwith "codegen_type"
   | ENothing        ->  Llvm.void_type info.context
-(*
-let rec pointer_degree info atype ref =
-  match atype with
-  | EInteger(lst)   ->  (match lst with
-                        | []      ->  if ref then 1 else 0
-                        | -1::tl  ->  1 + (pointer_degree info (EInteger(tl)) false)
-                        | hd::tl  ->  1 + (pointer_degree info (EInteger(tl)) false))
-  | ECharacter(lst) ->  (match lst with
-                        | []      ->  if ref then 1 else 0
-                        | -1::tl  ->  1 + (pointer_degree info (ECharacter(tl)) false)
-                        | hd::tl  ->  1 + (pointer_degree info (ECharacter(tl)) false))
-  | _               ->  failwith "codegen_type"
-*)
+  
 let id_get_llvalue info id =
   let rec walk (decl:func_decl) ac_link depth =
     let father_decl = match !(!(decl.father_func)) with Some(x) -> x | _ -> failwith "id_get_llvalue"
@@ -215,15 +203,15 @@ let fun_get_struct_ptr info id =
                               | Some(d,_) ->  (fun x -> (walk func_decl parent_acc_link (d+i-1))::x))
   | _              ->  failwith "fun_get_struct_ptr"
 
+
 let rec codegen_lval_for_array info lval =
   match lval with
-  | EAssId(id,_)            ->  let llval,_ = id_get_llvalue info id in llval
-  | EAssArrEl(lval,expr,_)  ->  Llvm.build_gep (codegen_lval_for_array info lval)
+  | EAssId(id,_)            ->  let llval,vtype = id_get_llvalue info id in (llval,vtype)
+  | EAssArrEl(lval,expr,_)  ->  let index,vtype=codegen_lval_for_array info lval in (Llvm.build_gep index
                                 [| info.c32 0; (codegen_expr info expr) |]
                                 "pointer"
-                                info.builder
+                                info.builder,vtype)
   | _                       ->  failwith "codegen_lval_for_array"
-
 
 and codegen_lval_load info lval =
   match lval with
@@ -237,12 +225,12 @@ and codegen_lval_load info lval =
                                 Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
                                 Llvm.set_alignment 1 the_str;
                                 the_str
-  | EAssArrEl(lval,expr,_)  ->  let llval = Llvm.build_gep (codegen_lval_for_array info lval)
-                                [| (codegen_expr info expr) |]
-                                "pointer"
-                                info.builder in
-                                Llvm.build_load llval "lval_tmp" info.builder
-
+  | EAssArrEl(lval,expr,_)  ->  let index,vtype = codegen_lval_for_array info lval in
+                                let llval = if vtype=Array then Llvm.build_gep index
+                                [| info.c32 0; (codegen_expr info expr) |] "pointer"
+                                info.builder else (let llval = Llvm.build_load index "lval_tmp" info.builder
+                                in Llvm.build_gep llval [| (codegen_expr info expr) |] "pointer" info.builder)
+                                in Llvm.build_load llval "lval_tmp" info.builder
 
 
 and codegen_expr info ast =
@@ -268,7 +256,9 @@ and codegen_call_func info id params =
   let codegen_param_ref info lval =
     match lval with
     | EAssId(id,_)            ->  let llval,vtype = id_get_llvalue info id in
-                                  if vtype=Ptr_value then Llvm.build_load llval "lval_tmp" info.builder else llval
+                                  if vtype = Value then llval
+                                  else if vtype = Array then Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "pointer" info.builder
+                                  else (* if vtype = Pointer *) Llvm.build_load llval "lval_tmp" info.builder
     | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
                                   let the_str = Llvm.declare_global str_type str info.the_module in
                                   Llvm.set_linkage Llvm.Linkage.Private the_str;
@@ -276,10 +266,11 @@ and codegen_call_func info id params =
                                   Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
                                   Llvm.set_alignment 1 the_str;
                                   Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder
-    | EAssArrEl(lval,expr,_)  ->  Llvm.build_gep (codegen_lval_for_array info lval)
-                                  [| info.c32 0; (codegen_expr info expr) |]
-                                  "pointer"
-                                  info.builder
+    | EAssArrEl(lval,expr,_)  ->  let index,vtype = codegen_lval_for_array info lval in
+                                  if vtype=Array then Llvm.build_gep index
+                                  [| info.c32 0; (codegen_expr info expr) |] "pointer"
+                                  info.builder else (let llval = Llvm.build_load index "lval_tmp" info.builder
+                                  in Llvm.build_gep llval [| (codegen_expr info expr) |] "pointer" info.builder)
   in let rec walk params ref_lst =
     (let get_llval param ref =
       if (ref == false) then (codegen_expr info param)
@@ -340,10 +331,12 @@ let codegen_ass info lval expr =
                                 let llval = if vtype=Ptr_value then Llvm.build_load llval "lval_tmp" info.builder else llval in
                                 ignore (Llvm.build_store expr llval info.builder)
   | EAssString(str,_)       ->  failwith "codegen_ass"
-  | EAssArrEl(lval,e,_)     ->  let llval = Llvm.build_gep (codegen_lval_for_array info lval)
-                                [| info.c32 0; (codegen_expr info e) |]
-                                "pointer"
-                                info.builder in
+  | EAssArrEl(lval,e,_)     ->  let index,vtype = codegen_lval_for_array info lval in
+                                let llval = if vtype=Array then Llvm.build_gep index
+                                [| info.c32 0; (codegen_expr info e) |] "pointer"
+                                info.builder else (let llval = Llvm.build_gep index
+                                [| (codegen_expr info e) |] "pointer"
+                                info.builder in Llvm.build_load llval "lval_tmp" info.builder) in
                                 ignore (Llvm.build_store expr llval info.builder)
 
 let rec codegen_stmt info statement =
@@ -593,7 +586,7 @@ let llvm_compile_and_dump main_func =
   ignore (Llvm.build_ret (c32 0) builder);
   close_scope ();
   (* Verify *)
-  (*Llvm_analysis.assert_valid_module the_module;*)
+  Llvm_analysis.assert_valid_module the_module;
   (* Optimize *)
   ignore (Llvm.PassManager.run_module the_module pm);
   (* Print out the IR *)
