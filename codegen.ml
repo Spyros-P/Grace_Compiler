@@ -299,7 +299,7 @@ let codegen_retval info expr =
   position_at_end ret_bb info.builder
 
 
-let rec codegen_eval_cond info cond f cond_bb true_bb false_bb =
+let rec codegen_cond info cond f cond_bb true_bb false_bb =
   Llvm.position_at_end cond_bb info.builder;
   match cond with
   | ELbop(oper, cond1, cond2, _)  ->  begin
@@ -308,20 +308,20 @@ let rec codegen_eval_cond info cond f cond_bb true_bb false_bb =
                                         | LbopAnd -> begin
                                                         let no_short_bb = Llvm.append_block info.context "and_no_short" f in
                                                         Llvm.position_at_end no_short_bb info.builder;
-                                                        ignore (codegen_eval_cond info cond2 f no_short_bb true_bb false_bb);
+                                                        ignore (codegen_cond info cond2 f no_short_bb true_bb false_bb);
                                                         Llvm.position_at_end cond_bb info.builder;
-                                                        codegen_eval_cond info cond1 f cond_bb no_short_bb false_bb
+                                                        codegen_cond info cond1 f cond_bb no_short_bb false_bb
                                                       end
                                         | LbopOr  -> begin
                                                         let no_short_bb = Llvm.append_block info.context "or_no_short" f in
                                                         Llvm.position_at_end no_short_bb info.builder;
-                                                        ignore (codegen_eval_cond info cond2 f no_short_bb true_bb false_bb);
+                                                        ignore (codegen_cond info cond2 f no_short_bb true_bb false_bb);
                                                         Llvm.position_at_end cond_bb info.builder;
-                                                        codegen_eval_cond info cond1 f cond_bb true_bb no_short_bb
+                                                        codegen_cond info cond1 f cond_bb true_bb no_short_bb
                                                       end
                                       end
   | ELuop(oper, cond1, _)         ->  begin
-                                        (codegen_eval_cond info cond1 f cond_bb false_bb true_bb)
+                                        (codegen_cond info cond1 f cond_bb false_bb true_bb)
                                       end
   | EComp(oper, expr1, expr2, _)  ->  begin
                                         let e1 = codegen_expr info expr1
@@ -376,7 +376,7 @@ and codegen_if info cond stmt =
   let after_bb = Llvm.append_block info.context "after" f in
   ignore (Llvm.build_br cond_bb info.builder);
   Llvm.position_at_end cond_bb info.builder;
-  ignore (codegen_eval_cond info cond f cond_bb then_bb after_bb);
+  ignore (codegen_cond info cond f cond_bb then_bb after_bb);
   Llvm.position_at_end then_bb info.builder;
   codegen_stmt info stmt;
   ignore (Llvm.build_br after_bb info.builder);
@@ -391,7 +391,7 @@ and codegen_ifelse info cond stmt1 stmt2 =
   let after_bb = Llvm.append_block info.context "after" f in
   ignore (Llvm.build_br cond_bb info.builder);
   Llvm.position_at_end cond_bb info.builder;
-  ignore (codegen_eval_cond info cond f cond_bb then_bb else_bb);
+  ignore (codegen_cond info cond f cond_bb then_bb else_bb);
   Llvm.position_at_end then_bb info.builder;
   codegen_stmt info stmt1;
   ignore (Llvm.build_br after_bb info.builder);
@@ -408,7 +408,7 @@ and codegen_while info cond stmt =
   let after_bb = Llvm.append_block info.context "after" f in
   ignore (Llvm.build_br cond_bb info.builder);
   Llvm.position_at_end cond_bb info.builder;
-  ignore (codegen_eval_cond info cond f cond_bb body_bb after_bb);
+  ignore (codegen_cond info cond f cond_bb body_bb after_bb);
   Llvm.position_at_end body_bb info.builder;
   codegen_stmt info stmt;
   ignore (Llvm.build_br cond_bb info.builder);
