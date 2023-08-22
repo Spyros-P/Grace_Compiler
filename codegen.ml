@@ -221,7 +221,7 @@ let fun_get_struct_ptr info id =
 let rec codegen_lval_for_array info lval stack =
   match lval with
   | EAssId(id,_)            ->  let llval,vtype = id_get_llvalue info id in
-                                let index,lst = (let rev_stack = List.rev stack in List.hd rev_stack, List.tl rev_stack)
+                                let index,lst = List.hd stack, List.tl stack
                                 in let llval= if vtype=Array then (Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder)
                                               else if vtype=Ptr_array then (let llval = Llvm.build_load llval "lval_tmp" info.builder
                                                                             in Llvm.build_gep llval [| index |] "pointer" info.builder)
@@ -229,10 +229,10 @@ let rec codegen_lval_for_array info lval stack =
                                                     in let llval = Llvm.build_gep llval [| info.c32 0 |] "pointer" info.builder
                                                     in Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder)
                                 in llval,lst
-    | EAssArrEl(lval,expr,_)  ->  let llval,stack = codegen_lval_for_array info lval ((codegen_expr info expr)::stack)
-                                  in let index,lst = match stack with index::lst -> index,lst | _ -> failwith "codegen_lval_for_array"
-                                  in (Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder, lst)
-    | _                       ->  failwith "codegen_lval_for_array"
+  | EAssArrEl(lval,expr,_)  ->  let llval,stack = codegen_lval_for_array info lval ((codegen_expr info expr)::stack)
+                                in let index,lst = match stack with index::lst -> index,lst | _ -> failwith "codegen_lval_for_array"
+                                in (Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder, lst)
+  | _                       ->  failwith "codegen_lval_for_array"
 
 
 and codegen_lval_load info lval =
