@@ -1,0 +1,18 @@
+fun main() : nothing
+
+    fun ret_1() : int
+    {
+        writeString("You should NOT see the message!\n");
+        return 1;
+    }
+
+{
+
+    if ((1 = 1) or (1 = ret_1())) then
+    {
+        writeString("Condition correctly evaluated!\n");
+    }
+    else {
+        writeString("Condition wrongly evaluated!\n");
+    }
+}

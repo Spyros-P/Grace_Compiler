@@ -33,5 +33,4 @@ lib/libmylib.a: lib/mylib.c lib/mylib.h
 clean:
 	$(OCAMLBUILD) -clean
 	$(RM) a.ll a.s a.out
-	$(RM) *~ 
 	$(RM) *.cmi *.mli
