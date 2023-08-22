@@ -30,12 +30,13 @@ let sem_closing_scope () =
     | _ -> ()
   in Hashtbl.iter find_decl (current_scope ())
 
-let used id =
+let used id = ()
+  (*
   match lookup id with
   | Some(Efundecl(_, b),_) -> b := true
   | Some(Efuncdef(_, b),_) -> b := true
   | Some(Evar(_, b, _),_)  -> b := true
-  | _ -> failwith "used" (* should fix: check if it fails with internal functions*)
+  | _ -> failwith "used" (* should fix: check if it fails with internal functions*)*)
 
 
 let symbol_add_arg (arg:func_args) =
@@ -394,8 +395,6 @@ let sem_main (f:func) =
   | [], ENothing  ->  curr_fun := [fun_def2decl f];
                       sem_fun f;
                       fix_depends ();
-                      fill_rest_fields f;
-                      (*print_endline ("siblings : " ^ string_of_int (List.length !sibling_dependacies));
-                      print_endline ("father-children : " ^ string_of_int (List.length !father_child_dependancies));*)
-                      print_depend f 0
+                      fill_rest_fields f(*
+                      print_depend f 0*)
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and should return nothing\n" f.id; exit 1)

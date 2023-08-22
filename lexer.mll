@@ -127,5 +127,5 @@ and lexer = parse
         { update_status ();
         let str = String.sub str 1 (String.length str-2) in
         STRING(read_str str) }   (* remove leading and lasting double quotes *)
-    | eof           { EOF }  (* lastly, eof and error *)
+    | eof           { update_status (); EOF }  (* lastly, eof and error *)
     | _ as chr      { raise (Error chr) }
