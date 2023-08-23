@@ -1,0 +1,18 @@
+fun main() : nothing
+    fun test(ref message: char[]): int
+       fun ret_1(): int
+       {
+           writeString(message);
+           return 1;
+       }
+    {
+        return ret_1();
+    }
+    fun do_nothing(a, b, c: int): nothing
+    {
+        return;
+    }
+{
+
+    do_nothing(test("first"), test("second"), test("third"));
+}
