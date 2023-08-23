@@ -1,0 +1,14 @@
+fun main() : nothing
+   fun test(ref message: char[]): int
+      fun ret_1(): int
+      {
+          writeString(message);
+          return 1;
+      }
+   {
+       return ret_1();
+   }
+   var array: int[3];
+{
+   array[do_nothing("first")] <- do_nothing("second") + array[do_nothing("third")];
+}
