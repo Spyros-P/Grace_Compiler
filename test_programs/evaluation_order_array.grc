@@ -1,0 +1,15 @@
+fun main() : nothing
+   fun test(ref message: char[]): int
+      fun ret_1(): int
+      {
+          writeString(message);
+          return 1;
+      }
+   {
+       return ret_1();
+   }
+   var array: int[3][3][3];
+{
+
+   array[test("first")][test("second")][test("third")] <- 1;
+}
