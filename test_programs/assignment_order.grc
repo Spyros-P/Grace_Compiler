@@ -8,7 +8,11 @@ fun main() : nothing
    {
        return ret_1();
    }
-   var array: int[3];
+   fun sum(a,b : int) : int
+   {
+      return a+b;
+   }
+   var array: int[3][3];
 {
-   array[do_nothing("first")] <- do_nothing("second") + array[do_nothing("third")];
+   array[test("First\n")][test("Second\n")] <- sum(test("Third\n"),test("Fourth\n"));
 }

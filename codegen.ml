@@ -218,20 +218,19 @@ let fun_get_struct_ptr info id =
 
 
 
-let rec codegen_lval_for_array info lval stack =
+let rec codegen_lval_for_array info lval index_expr =
   match lval with
   | EAssId(id,_)            ->  let llval,vtype = id_get_llvalue info id in
-                                let index,lst = List.hd stack, List.tl stack
-                                in let llval= if vtype=Array then (Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder)
-                                              else if vtype=Ptr_array then (let llval = Llvm.build_load llval "lval_tmp" info.builder
-                                                                            in Llvm.build_gep llval [| index |] "pointer" info.builder)
-                                              else (let llval = Llvm.build_load llval "lval_tmp" info.builder
-                                                    in let llval = Llvm.build_gep llval [| info.c32 0 |] "pointer" info.builder
-                                                    in Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder)
-                                in llval,lst
-  | EAssArrEl(lval,expr,_)  ->  let llval,stack = codegen_lval_for_array info lval ((codegen_expr info expr)::stack)
-                                in let index,lst = match stack with index::lst -> index,lst | _ -> failwith "codegen_lval_for_array"
-                                in (Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder, lst)
+                                let index = codegen_expr info index_expr in
+                                if vtype=Array then (Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder)
+                                else if vtype=Ptr_array then (let llval = Llvm.build_load llval "lval_tmp" info.builder
+                                                              in Llvm.build_gep llval [| index |] "pointer" info.builder)
+                                else (let llval = Llvm.build_load llval "lval_tmp" info.builder
+                                      in let llval = Llvm.build_gep llval [| info.c32 0 |] "pointer" info.builder
+                                      in Llvm.build_gep llval [| info.c32 0; index |] "pointer" info.builder)
+  | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
+                                in let index = codegen_expr info index_expr
+                                in Llvm.build_gep llval [| info.c32 0;  index |] "pointer" info.builder
   | _                       ->  failwith "codegen_lval_for_array"
 
 
@@ -247,7 +246,7 @@ and codegen_lval_load info lval =
                                 Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
                                 Llvm.set_alignment 1 the_str;
                                 the_str
-  | EAssArrEl(lval,expr,_)  ->  let llval,_ = codegen_lval_for_array info lval [codegen_expr info expr]
+  | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                 in Llvm.build_load llval "lval_tmp" info.builder
 
 
@@ -284,7 +283,7 @@ and codegen_call_func info id params =
                                   Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
                                   Llvm.set_alignment 1 the_str;
                                   Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder
-    | EAssArrEl(lval,expr,_)  ->  let llval,_ = codegen_lval_for_array info lval [codegen_expr info expr]
+    | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                   in if target_type=Pointer then llval
                                   else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "pointer" info.builder
   in let rec walk params ref_lst =
@@ -295,7 +294,7 @@ and codegen_call_func info id params =
             | _               ->  failwith "codegen_call_func") in
     match params, ref_lst with
     | [], []                              ->  []
-    | param::rest_params, ref::rest_refs  ->  (get_llval param ref) :: (walk rest_params rest_refs)
+    | param::rest_params, ref::rest_refs  ->  let llval = (get_llval param ref) in llval :: (walk rest_params rest_refs)
     | _, _                                ->  failwith "codegen_call_func") in
   let func,_ = id_get_llvalue info id in
   let fix = fun_get_struct_ptr info id in
@@ -354,21 +353,21 @@ let rec codegen_cond info cond f cond_bb true_bb false_bb =
                                       end
 
 
-let codegen_ass info lval store_llval =
+let codegen_ass info lval store_expr =
   match lval with
   | EAssId(id,_)            ->  let llval,vtype = id_get_llvalue info id in
                                 let llval = if vtype=Pointer then Llvm.build_load llval "lval_tmp" info.builder else llval in
-                                ignore (Llvm.build_store store_llval llval info.builder)
+                                ignore (Llvm.build_store (codegen_expr info store_expr) llval info.builder)
   | EAssString(str,_)       ->  failwith "codegen_ass"
-  | EAssArrEl(lval,expr,_)  ->  let llval,_ = codegen_lval_for_array info lval [codegen_expr info expr]
-                                in ignore(Llvm.build_store store_llval llval info.builder)
+  | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
+                                in ignore(Llvm.build_store (codegen_expr info store_expr) llval info.builder)
 
 let rec codegen_stmt info statement =
   match statement with
   | EEmpty(_)                       ->  ((*do nothing*))
   | EBlock(block, _)                ->  codegen_block     info block
   | ECallFunc(id, params, _)        ->  ignore(codegen_call_func info id params)
-  | EAss(lval, expr, _)             ->  codegen_ass       info lval (codegen_expr info expr)
+  | EAss(lval, expr, _)             ->  codegen_ass       info lval expr
   | EIf(cond, stmt, _)              ->  codegen_if        info cond stmt
   | EIfElse(cond, stmt1, stmt2, _)  ->  codegen_ifelse    info cond stmt1 stmt2
   | EWhile(cond, stmt, _)           ->  codegen_while     info cond stmt
