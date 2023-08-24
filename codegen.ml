@@ -557,20 +557,57 @@ let llvm_compile_and_dump main_func =
   let builder = Llvm.builder context in
   let pm = Llvm.PassManager.create () in
   let optimizations = [
-    add_ipsccp; add_memory_to_register_promotion; add_dead_arg_elimination;
-    add_instruction_combination; add_cfg_simplification;
-    add_function_inlining; add_function_attrs; add_scalar_repl_aggregation;
-    add_early_cse; add_cfg_simplification; add_instruction_combination;
-    add_tail_call_elimination; add_reassociation; add_loop_rotation;
-    add_loop_unswitch; add_instruction_combination; add_cfg_simplification;
-    add_ind_var_simplification; add_loop_idiom; add_loop_deletion;
-    add_loop_unroll; add_gvn; add_memcpy_opt; add_sccp; add_licm;
-    add_global_optimizer; add_global_dce;
-    add_aggressive_dce; add_cfg_simplification; add_instruction_combination;
-    add_dead_store_elimination; add_loop_vectorize; add_slp_vectorize;
-    add_strip_dead_prototypes; add_global_dce; add_cfg_simplification;
+    (* Initial Simplification and Canonicalization *)
+    Llvm_scalar_opts.add_instruction_combination;
+    Llvm_scalar_opts.add_cfg_simplification;
+  
+    (* Early Stage Optimizations *)
+    Llvm_scalar_opts.add_early_cse;  (* Early Common Subexpression Elimination *)
+    Llvm_ipo.add_function_attrs;  (* Function attribute inference *)
+    Llvm_ipo.add_ipsccp;  (* Interprocedural Sparse Conditional Constant Propagation *)
+    
+    (* Memory and Register Promotions *)
+    Llvm_scalar_opts.add_memory_to_register_promotion;
+    
+    (* Dead Code Elimination and Aggregation *)
+    Llvm_ipo.add_dead_arg_elimination;
+    Llvm_ipo.add_global_dce;  (* Global Dead Code Elimination *)
+    Llvm_scalar_opts.add_dead_store_elimination;  (* Dead Store Elimination *)
+  
+    (* Constant Propagation and Folding *)
+    Llvm_scalar_opts.add_sccp;  (* Sparse Conditional Constant Propagation *)
+    
+    (* Loop Simplification and Analysis *)
+    Llvm_scalar_opts.add_loop_rotation;
+    Llvm_scalar_opts.add_ind_var_simplification;  (* Induction Variable Simplification *)
+    Llvm_scalar_opts.add_loop_idiom;  (* Loop Idiom Recognition *)
+    
+    (* Mid-Stage Optimizations *)
+    Llvm_scalar_opts.add_instruction_combination;
+    Llvm_scalar_opts.add_reassociation;
+    Llvm_scalar_opts.add_gvn;  (* Global Value Numbering *)
+  
+    (* Loop Optimizations *)
+    Llvm_scalar_opts.add_licm;  (* Loop Invariant Code Motion *)
+    Llvm_scalar_opts.add_loop_unswitch;  (* Unswitch loops with loop-invariant conditionals *)
+    Llvm_scalar_opts.add_loop_unroll;  (* Unroll loops to enable further optimizations *)
+    Llvm_scalar_opts.add_loop_deletion;  (* Delete empty loops *)
+  
+    (* Function Inlining and Tail Calls *)
+    Llvm_ipo.add_function_inlining;  (* Inline small functions *)
+    Llvm_scalar_opts.add_tail_call_elimination;
+  
+    (* Advanced Optimizations *)
+    Llvm_scalar_opts.add_scalar_repl_aggregation;
+    Llvm_vectorize.add_loop_vectorize;  (* Vectorize loops to operate on multiple data in parallel *)
+    Llvm_vectorize.add_slp_vectorize;  (* SLP Vectorization to vectorize straight-line code *)
+    
+    (* Late Stage Cleanup *)
+    Llvm_scalar_opts.add_aggressive_dce;  (* Aggressive Dead Code Elimination *)
+    Llvm_ipo.add_strip_dead_prototypes;
+    Llvm_scalar_opts.add_cfg_simplification;
   ] in
-  if false then List.iter (fun f -> f pm) optimizations;
+  if true then List.iter (fun f -> f pm) optimizations;
   (* Initialize types *)
   let i8 = Llvm.i8_type context in
   let i32 = Llvm.i32_type context in
