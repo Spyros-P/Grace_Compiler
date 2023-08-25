@@ -25,5 +25,6 @@ let main =
   in
     sem_main main_func;
     close_in channel;
+    let optimizations_enable = Array.exists (fun arg -> arg = "-O") Sys.argv in
     if !errors_detected=true then exit 1
-    else llvm_compile_and_dump main_func
+    else llvm_compile_and_dump main_func optimizations_enable

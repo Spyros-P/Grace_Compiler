@@ -549,7 +549,7 @@ let codegen_build_in_decl info (decl:func_decl) =
 
 
 (* define main - compile and dump function *)
-let llvm_compile_and_dump main_func =
+let llvm_compile_and_dump main_func optimizations_enable =
   (* Initialize *)
   Llvm_all_backends.initialize ();
   let context = Llvm.global_context () in
@@ -607,7 +607,7 @@ let llvm_compile_and_dump main_func =
     Llvm_ipo.add_strip_dead_prototypes;
     Llvm_scalar_opts.add_cfg_simplification;
   ] in
-  if true then List.iter (fun f -> f pm) optimizations;
+  if optimizations_enable then List.iter (fun f -> f pm) optimizations;
   (* Initialize types *)
   let i8 = Llvm.i8_type context in
   let i32 = Llvm.i32_type context in
