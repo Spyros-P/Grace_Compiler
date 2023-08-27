@@ -1,0 +1,42 @@
+fun main(): nothing
+    fun power(base, exponent: int): int
+    var temp: int;
+    {
+        temp <- 0;
+        if exponent = 0 then { return 1 ;}
+        temp <- power(base, exponent div 2);
+        if exponent mod 2 = 0 then
+        {
+            return temp * temp;
+        }
+        else
+        {
+            return base * temp * temp;
+        }
+    }
+    fun powerset(ref set: char[]): nothing
+    var size, powerset_size, counter, j : int;
+    {
+        size <- strlen(set);
+        powerset_size <- power(2, size);
+        counter <- 0;
+        while (counter < powerset_size) do
+        {
+            j <- 0;
+            while (j < size) do
+            {
+                if ((counter div power(2, j)) mod 2 = 1) then
+                {
+                    writeChar(set[j]);
+                }
+                j <- j + 1;
+            }
+            writeChar('\n');
+            counter <- counter + 1;
+        }
+    }
+    var myset: char[5];
+{
+    strcpy(myset, "abcde");
+    powerset(myset);
+}
