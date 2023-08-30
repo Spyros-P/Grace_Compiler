@@ -1,0 +1,19 @@
+fun hello () : nothing
+    fun bruh (): nothing
+
+        fun hello (): nothing
+        {
+            writeString("Hello bruh!\n");
+            $ loop forever
+            hello();
+        }
+    {
+        writeString("bruh\n");
+        if (1 = 1) then hello();
+        else return;
+    }
+    var test : int;
+{
+   writeString("Hello world!\n");
+   bruh();
+}

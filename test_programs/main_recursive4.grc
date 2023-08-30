@@ -51,7 +51,6 @@ fun main() : nothing
     var test: int;
 
 {
-    print(main(), N);
     test <- main() + 5;
     N <- 3;
 
