@@ -10,6 +10,11 @@ open Symbol
 
 let curr_fun : func_decl list ref = ref []
 
+(* function to print the contents of the "curr_fun" list*)
+let print_functions () = 
+  List.iter (fun (x:func_decl) -> printf "%s\n" x.id) !curr_fun;
+  printf "\n"
+
 let get_curr_fun () =
   try
     List.hd !curr_fun
@@ -141,7 +146,7 @@ and sem_expr (e:expr) =
   | EInt(i,_)               ->  EInteger([])
   | EChar(c,_)              ->  ECharacter([])
   | EFuncCall(id,elst,pos)  ->  begin
-                                  if (id = (get_main_fun ()).id)
+                                  if (id = (get_main_fun ()).id && (List.length !curr_fun) = 1)
                                   then (error "Function \"%s\" is the main function and it cannot call itself.\n" id; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                   else
                                     let
@@ -195,7 +200,7 @@ let rec sem_stmt (s:stmt) =
   | EEmpty(pos)             ->  warning "Empty statement\n"; print_file_lines filename pos.line_start pos.line_end
   | EBlock(b,_)             ->  sem_block b
   | ECallFunc(x,y,pos)      ->  begin
-                                  if ((get_curr_fun ()).id = (get_main_fun ()).id)
+                                  if ((get_curr_fun ()).id = (get_main_fun ()).id && (List.length !curr_fun) = 1)
                                   then (error "Function \"%s\" is the main function and it cannot call itself.\n" (get_curr_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                   else
                                     let
