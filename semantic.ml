@@ -10,6 +10,18 @@ open Symbol
 
 let curr_fun : func_decl list ref = ref []
 
+let get_curr_fun () =
+  try
+    List.hd !curr_fun
+  with
+    Failure _ -> failwith "get_curr_fun"
+
+let get_main_fun () =
+  try 
+    List.hd (List.rev !curr_fun)
+  with
+    Failure _ -> failwith "get_main_fun"
+
 (* (caller,callee,int) tuple *)
 let caller_callee_dependancies : (func_decl * func_decl * int) list ref = ref []
 
@@ -119,33 +131,36 @@ let rec get_lval_type (x:lvalue) =
                                 else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 1)
   | EAssId(str,_)         ->  used str;
                               match lookup str with
-                              | None -> error "Variable \"%s\" has not declared\n" str; exit 1
+                              | None -> error "Variable \"%s\" has not been declared\n" str; exit 1
                               | Some(Evar(v,_,_),i) ->  let curr_fun = List.hd !curr_fun in
                                                         if (i>0) then (v.to_ac_rec := true; ignore (update_depend !(curr_fun.depend) i)); v.atype
                               | _ -> failwith "get_lval_type"
-
-
 and sem_expr (e:expr) =
   match e with
   | ELVal(l,_)              ->  get_lval_type l
   | EInt(i,_)               ->  EInteger([])
   | EChar(c,_)              ->  ECharacter([])
-  | EFuncCall(id,elst,pos)  ->  let
-                                  fn,i = (match lookup id with
-                                        | Some(Efuncdef(decl, _),i) -> decl,i
-                                        | Some(Efundecl(decl, _),i) -> decl,i
-                                        | _ -> failwith "sem_expr")
-                                in
-                                  (used id;
-                                  let curr_fn = List.hd !curr_fun in
-                                  if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
-                                  if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
-                                  then fn.ret
-                                  else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
-                                        print_file_lines filename fn.pos.line_start fn.pos.line_end;
-                                        printf "\nUsed in:\n";
-                                        print_file_lines filename pos.line_start pos.line_end;
-                                        exit 1))
+  | EFuncCall(id,elst,pos)  ->  begin
+                                  if (id = (get_main_fun ()).id)
+                                  then (error "Function \"%s\" is the main function and it cannot call itself.\n" id; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                  else
+                                    let
+                                      fn,i = (match lookup id with
+                                            | Some(Efuncdef(decl, _),i) -> decl,i
+                                            | Some(Efundecl(decl, _),i) -> decl,i
+                                            | _ -> failwith "sem_expr")
+                                    in
+                                      (used id;
+                                      let curr_fn = List.hd !curr_fun in
+                                      if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
+                                      if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
+                                      then fn.ret
+                                      else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
+                                            print_file_lines filename fn.pos.line_start fn.pos.line_end;
+                                            printf "\nUsed in:\n";
+                                            print_file_lines filename pos.line_start pos.line_end;
+                                            exit 1))
+                                    end
   | EBinOp(bop,e1,e2,pos)   ->  let
                                   t1=(sem_expr e1) and t2=(sem_expr e2)
                                 in
@@ -179,25 +194,30 @@ let rec sem_stmt (s:stmt) =
   match s with
   | EEmpty(pos)             ->  warning "Empty statement\n"; print_file_lines filename pos.line_start pos.line_end
   | EBlock(b,_)             ->  sem_block b
-  | ECallFunc(x,y,pos)      ->  let
-                                  fn,i = match lookup x with
-                                        | Some(Efuncdef(decl,_),i) -> decl,i
-                                        | Some(Efundecl(decl,_),i) -> decl,i
-                                        | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
-                                                                    printf "Variable definition:\n";
-                                                                    print_file_lines filename var.pos.line_start var.pos.line_end;
-                                                                    printf "\nUsed as:\n";
-                                                                    print_file_lines filename pos.line_start pos.line_end;
-                                                                    exit 1
-                                        | None -> error "Function \"%s\" used but was not previously declared\n" x;
-                                                  print_file_lines filename pos.line_start pos.line_end;
-                                                exit 1
-                                in
-                                  let curr_fn = List.hd !curr_fun in
-                                  if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
-                                  if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
-                                  then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
-                                  else (error "Function argument types missmatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
+  | ECallFunc(x,y,pos)      ->  begin
+                                  if ((get_curr_fun ()).id = (get_main_fun ()).id)
+                                  then (error "Function \"%s\" is the main function and it cannot call itself.\n" (get_curr_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                  else
+                                    let
+                                      fn,i = match lookup x with
+                                            | Some(Efuncdef(decl,_),i) -> decl,i
+                                            | Some(Efundecl(decl,_),i) -> decl,i
+                                            | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
+                                                                        printf "Variable definition:\n";
+                                                                        print_file_lines filename var.pos.line_start var.pos.line_end;
+                                                                        printf "\nUsed as:\n";
+                                                                        print_file_lines filename pos.line_start pos.line_end;
+                                                                        exit 1
+                                            | None -> error "Function \"%s\" used but was not previously declared\n" x;
+                                                      print_file_lines filename pos.line_start pos.line_end;
+                                                    exit 1
+                                    in
+                                      let curr_fn = List.hd !curr_fun in
+                                      if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
+                                      if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
+                                      then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
+                                      else (error "Function argument types missmatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                end
   | EAss(lval,e,pos)        ->  (match lval_is_string lval with
                                 | (res,str) ->  if res then (error "Assignment of read-only location '\"%s\"'\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                                 else (
