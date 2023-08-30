@@ -2,15 +2,15 @@ $ I believe this should be working.
 $ We get an llc error: store operand must be a pointer.
 
 fun main(): nothing
-    var alphabet: char[27];
-    var capitals: char[27];
+    var alphabet: char[26];
+    var capitals: char[26];
     var tempchar: char;
     var tempascii: int;
     var limit: int;
     var counter: int;
 {
-    alphabet <- "abcdefghijklmnopqrstuvwxyz";
-    capitals <- "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    strcpy(alphabet,"abcdefghijklmnopqrstuvwxyz");
+    strcpy(capitals,"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     limit <- 26;
     counter <- 0;
     writeString("Testing lowercase alphabet:\n");
