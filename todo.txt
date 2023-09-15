@@ -1,4 +1,0 @@
-TODO LIST:
-
-1) Add error function to lexer. [ DONE ]
-1) Add line counter to lexer, for more accurate error function. [ DONE ]
