@@ -15,16 +15,16 @@ let main =
       with
       | Lexer.Error(c) ->
           fprintf stderr "Lexical error at line %d: Unknown character '%c' with ascii code %s\n"
-            lexbuf.lex_curr_p.pos_lnum c (print_ascii_code c);
+            lexbuf.lex_curr_p.pos_lnum c (Read.print_ascii_code c);
           exit 1
       | Parser.Error ->
-          error "Parse error at line %d.\n" lexbuf.lex_curr_p.pos_lnum;
-            print_file_lines filename !prev_line !prev_line;
-            print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5);
+          Error.error "Parse error at line %d.\n" lexbuf.lex_curr_p.pos_lnum;
+            Read.print_file_lines filename !prev_line !prev_line;
+            Read.print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5);
           exit 1
   in
-    sem_main main_func;
+    Semantic.sem_main main_func;
     close_in channel;
     let optimizations_enable = Array.exists (fun arg -> arg = "-O") Sys.argv in
-    if !errors_detected=true then exit 1
-    else llvm_compile_and_dump main_func optimizations_enable
+    if Error.!errors_detected=true then exit 1
+    else Codegen.llvm_compile_and_dump main_func optimizations_enable
