@@ -15,7 +15,7 @@ let main =
       with
       | Lexer.Error(c) ->
           fprintf stderr "Lexical error at line %d: Unknown character '%c' with ascii code %s\n"
-            lexbuf.lex_curr_p.pos_lnum c (Read.print_ascii_code c);
+            lexbuf.lex_curr_p.pos_lnum c (print_ascii_code c);
           exit 1
       | Parser.Error ->
           Error.error "Parse error at line %d.\n" lexbuf.lex_curr_p.pos_lnum;
@@ -26,5 +26,5 @@ let main =
     Semantic.sem_main main_func;
     close_in channel;
     let optimizations_enable = Array.exists (fun arg -> arg = "-O") Sys.argv in
-    if Error.!errors_detected=true then exit 1
+    if !Error.errors_detected=true then exit 1
     else Codegen.llvm_compile_and_dump main_func optimizations_enable

@@ -8,11 +8,11 @@ open Ast
 
 
 type entry =
-(*                        used           *)
-| Efundecl of func_decl * bool ref
-| Efuncdef of func_decl * bool ref
-(*                used       initialized *)
-| Evar of var * bool ref * bool ref
+  (*                        used           *)
+  | Efundecl of func_decl * bool ref
+  | Efuncdef of func_decl * bool ref
+  (*              used       initialized *)
+  | Evar of var * bool ref * bool ref
 
 
 (* ------------------------------------------------- *)
@@ -57,8 +57,8 @@ let lookup id =
                         Some (Hashtbl.find cs id, n)
                       with Not_found -> walk id scopes (n+1))
   in 
-    try Some(Hashtbl.find build_in_table id, -1)
-    with Not_found -> walk id !symbol_table 0
+    try walk id !symbol_table 0
+    with Not_found -> Some(Hashtbl.find build_in_table id, -1)
 
 
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)

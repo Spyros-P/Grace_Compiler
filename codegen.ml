@@ -1,5 +1,6 @@
 open Ast
 open Printf
+open Symbol
 open Llvm
 open Llvm_ipo
 open Llvm_vectorize
@@ -28,8 +29,6 @@ type llvm_info = {
   i64             :   Llvm.lltype;
   c32             :   int -> Llvm.llvalue;
   c64             :   int -> Llvm.llvalue;
-  i8_ptr_trash    :   llvalue;
-  the_nl          :   Llvm.llvalue;
   funcs           :   Llvm.llvalue list ref;
   build_in_table  :   (string, entry) Hashtbl.t;
   count_funs      :   int ref;
@@ -187,8 +186,8 @@ let id_get_llvalue info id =
   in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0 (* check code line for potention hazard*)
   in match lookup info id with
   | Some(Efun(_,llval),i)         ->  (llval,Fun)
-  | Some(Evar(_,llval,vtype),-1)  ->  (llval (info.the_nl),vtype)
-  | Some(Evar(_,llval,vtype),0)   ->  (llval (match List.hd !activation_records with Some(x) -> x | None -> info.the_nl),vtype)
+  | Some(Evar(_,llval,vtype),-1)  ->  (llval (info.c32 0),vtype)
+  | Some(Evar(_,llval,vtype),0)   ->  (llval (match List.hd !activation_records with Some(x) -> x | None -> (info.c32 0)),vtype)
   | Some(Evar(_,llval,vtype),i)   ->  (llval (walk func_decl parent_acc_link i),vtype)
   | _                             ->  failwith "id_get_llvalue"
 
@@ -282,7 +281,9 @@ and codegen_call_func info id params =
                                   Llvm.set_global_constant true the_str;
                                   Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
                                   Llvm.set_alignment 1 the_str;
-                                  Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder
+                                  if target_type==Array then
+                                    Llvm.build_load the_str "lval_tmp" info.builder
+                                  else Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder
     | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                   in if target_type=Pointer then llval
                                   else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "pointer" info.builder
@@ -535,17 +536,22 @@ let rec main_codegen_localdef info def =
 match def with
 | EFuncDef(func)        ->  codegen_localdef info def
 | EFuncDecl(func_decl)  ->  codegen_localdef info def
-| EVarDef(var)          ->  let ltype = codegen_type info var.atype false in
+| EVarDef(var)          ->  (* Initialize global variables *)
+                            let ltype = codegen_type info var.atype false in
                             let llval = Llvm.declare_global ltype var.id info.the_module in
                             Llvm.set_linkage Llvm.Linkage.Private llval;
                             Llvm.set_initializer (Llvm.const_null ltype) llval;
                             insert var.id (Evar(var,(fun _ -> llval),get_type var.atype false))
 
-let codegen_build_in_decl info (decl:func_decl) =
-  let ffunc_type = Llvm.function_type (codegen_type info decl.ret false) (codegen_fun_array_args info decl.args decl) in (* fix array *)
-  let ffunc = Llvm.declare_function decl.id ffunc_type info.the_module in
-  Hashtbl.add info.build_in_table decl.id (Efun(decl,ffunc));
-  Hashtbl.add fun_refs ffunc (List.map (fun x -> get_type x.atype x.ref) decl.args)
+let codegen_build_in_decl info (entr:Symbol.entry) =
+  match entr with
+  | Efuncdef(decl,used) ->  if !used then
+                              let ffunc_type = Llvm.function_type (codegen_type info decl.ret false) (codegen_fun_array_args info decl.args decl) in (* fix array *)
+                              let ffunc = Llvm.declare_function decl.id ffunc_type info.the_module in
+                              Hashtbl.add info.build_in_table decl.id (Efun(decl,ffunc));
+                              Hashtbl.add fun_refs ffunc (List.map (fun x -> get_type x.atype x.ref) decl.args)
+                            else ()
+  | _ -> failwith "codegen_build_in_decl"
 
 
 (* define main - compile and dump function *)
@@ -615,14 +621,6 @@ let llvm_compile_and_dump main_func optimizations_enable =
   (* Initialize constant functions *)
   let c32 = Llvm.const_int i32 in
   let c64 = Llvm.const_int i64 in
-  (* Initialize global variables *)
-  let nl = "\n" in
-  let nl_type = Llvm.array_type i8 (1 + String.length nl) in
-  let the_nl = Llvm.declare_global nl_type "nl" the_module in
-  Llvm.set_linkage Llvm.Linkage.Private the_nl;
-  Llvm.set_global_constant true the_nl;
-  Llvm.set_initializer (Llvm.const_stringz context nl) the_nl;
-  Llvm.set_alignment 1 the_nl;
   (* Create symbol table for build in functions *)
   let build_in_table = Hashtbl.create 10 in
   open_scope ();
@@ -631,7 +629,6 @@ let llvm_compile_and_dump main_func optimizations_enable =
   let main = Llvm.declare_function "main" main_type the_module in
   let bb = Llvm.append_block context "entry" main in
   Llvm.position_at_end bb builder;
-  let i8_ptr_trash = Llvm.build_alloca i8 "$_i8_ptr_trash" builder in
   (* Emit the program code *)
   let info = {
     context          = context;
@@ -642,14 +639,14 @@ let llvm_compile_and_dump main_func optimizations_enable =
     i64              = i64;
     c32              = c32;
     c64              = c64;
-    i8_ptr_trash     = i8_ptr_trash;
-    the_nl           = the_nl;
     funcs            = ref [main];
     build_in_table   = build_in_table;
     count_funs       = ref 1;
   } in
   fun_decls := [fun_def2decl main_func];
-  List.iter (codegen_build_in_decl info) build_in_defs;
+  let values_from_hashtable htbl =
+    Hashtbl.fold (fun _key value acc -> value :: acc) htbl [] in
+  List.iter (codegen_build_in_decl info) (values_from_hashtable Symbol.build_in_table);
   struct_types       := [None];
   activation_records := [None];
   List.iter (main_codegen_localdef info) main_func.local_defs;

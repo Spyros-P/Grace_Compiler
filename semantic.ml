@@ -47,14 +47,6 @@ let sem_closing_scope () =
     | _ -> ()
   in Hashtbl.iter find_decl (current_scope ())
 
-let used id = ()
-  (*
-  match lookup id with
-  | Some(Efundecl(_, b),_) -> b := true
-  | Some(Efuncdef(_, b),_) -> b := true
-  | Some(Evar(_, b, _),_)  -> b := true
-  | _ -> failwith "used" (* should fix: check if it fails with internal functions*)*)
-
 
 let symbol_add_arg (arg:func_args) =
   (match lookup_head arg.id with
@@ -134,10 +126,10 @@ let rec get_lval_type (x:lvalue) =
                                     | ECharacter(hd::tl) -> ECharacter(tl)
                                     | _ -> (error "Array dimensions have been exeeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 1))
                                 else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 1)
-  | EAssId(str,_)         ->  used str;
-                              match lookup str with
+  | EAssId(str,_)         ->  match lookup str with
                               | None -> error "Variable \"%s\" has not been declared\n" str; exit 1
-                              | Some(Evar(v,_,_),i) ->  let curr_fun = List.hd !curr_fun in
+                              | Some(Evar(v,b,_),i) ->  b := true; (* used *)
+                                                        let curr_fun = List.hd !curr_fun in
                                                         if (i>0) then (v.to_ac_rec := true; ignore (update_depend !(curr_fun.depend) i)); v.atype
                               | _ -> failwith "get_lval_type"
 and sem_expr (e:expr) =
@@ -146,17 +138,16 @@ and sem_expr (e:expr) =
   | EInt(i,_)               ->  EInteger([])
   | EChar(c,_)              ->  ECharacter([])
   | EFuncCall(id,elst,pos)  ->  begin
-                                  if (id = (get_main_fun ()).id && (List.length !curr_fun) = 1)
+                                  if (id = (get_main_fun ()).id && (List.length !curr_fun) = 2)
                                   then (error "Function \"%s\" is the main function and it cannot call itself.\n" id; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                   else
                                     let
                                       fn,i = (match lookup id with
-                                            | Some(Efuncdef(decl, _),i) -> decl,i
-                                            | Some(Efundecl(decl, _),i) -> decl,i
+                                            | Some(Efuncdef(decl, b),i) -> b := true; (* used *) decl,i
+                                            | Some(Efundecl(decl, b),i) -> b := true; (* used *) decl,i
                                             | _ -> failwith "sem_expr")
                                     in
-                                      (used id;
-                                      let curr_fn = List.hd !curr_fun in
+                                      (let curr_fn = List.hd !curr_fun in
                                       if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                       if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
                                       then fn.ret
@@ -200,13 +191,13 @@ let rec sem_stmt (s:stmt) =
   | EEmpty(pos)             ->  warning "Empty statement\n"; print_file_lines filename pos.line_start pos.line_end
   | EBlock(b,_)             ->  sem_block b
   | ECallFunc(x,y,pos)      ->  begin
-                                  if ((get_curr_fun ()).id = (get_main_fun ()).id && (List.length !curr_fun) = 1)
+                                  if ((get_curr_fun ()).id = (get_main_fun ()).id && (List.length !curr_fun) = 2)
                                   then (error "Function \"%s\" is the main function and it cannot call itself.\n" (get_curr_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                   else
                                     let
                                       fn,i = match lookup x with
-                                            | Some(Efuncdef(decl,_),i) -> decl,i
-                                            | Some(Efundecl(decl,_),i) -> decl,i
+                                            | Some(Efuncdef(decl,b),i) -> b := true; (* used *) decl,i
+                                            | Some(Efundecl(decl,b),i) -> b := true; (* used *) decl,i
                                             | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
                                                                         printf "Variable definition:\n";
                                                                         print_file_lines filename var.pos.line_start var.pos.line_end;
@@ -269,18 +260,27 @@ and sem_block (b:block) =
   | EListStmt([],pos)   ->  warning "Block is empty\n"; print_file_lines filename pos.line_start pos.line_end
   | EListStmt(s_lst,_)  ->  List.iter (fun x -> sem_stmt x) s_lst
 
+let check_refs (decl:func_decl) =
+  let rec walk arg_lst =
+    match arg_lst with
+    | hd::tl  ->  (match hd.atype with
+                  | ECharacter([]) -> walk tl
+                  | EInteger([]) -> walk tl
+                  | _ -> if hd.ref then walk tl else false)
+    | []      -> true
+  in walk decl.args
+
 
 let rec symbol_add_def (decl:local_def) =
   match decl with
   | EFuncDef(func) -> (match lookup_head func.id with
-                      | None -> ()
+                      | None -> if (check_refs (fun_def2decl func)) then ()
+                                else (error "Function array arguments must be declared as references\n";
+                                      printf "Function definition:\n";
+                                      print_file_lines filename func.pos.line_start func.pos.line_end;
+                                      exit 1)
                       | Some(Efundecl(x,_)) ->  x.depend := func.depend; x.father_func := func.father_func; check_decl_def x func; remove_head func.id
-                      | Some(Efuncdef(x,_)) ->  if (x.pos.line_start == 0)
-                                                then (error "Name conflict: internal function \"%s\" and function \"%s\"\n" x.id x.id;
-                                                      printf "Function definition:\n";
-                                                      print_file_lines filename func.pos.line_start func.pos.line_end;
-                                                      exit 1)
-                                                else
+                      | Some(Efuncdef(x,_)) ->  if (x.pos.line_start <> 0) then
                                                 (error "Duplicate definition of function \"%s\"\n" func.id;
                                                 printf "First definition:\n";
                                                 print_file_lines filename x.pos.line_start x.pos.line_end;
@@ -295,7 +295,11 @@ let rec symbol_add_def (decl:local_def) =
                                                 exit 1);
                       insert func.id (Efuncdef(fun_def2decl func, ref false)); sem_fun func
   | EFuncDecl(func_decl) -> (match lookup_head func_decl.id with
-                            | None -> ()
+                            | None -> if (check_refs func_decl) then ()
+                                      else (error "Function array arguments must be declared as references\n";
+                                            printf "Function definition:\n";
+                                            print_file_lines filename func_decl.pos.line_start func_decl.pos.line_end;
+                                            exit 1)
                             | Some(Efundecl(x,_)) ->  error "Duplicate declaration of function \"%s\"\n" x.id;
                                                       printf "Fist declaration:\n";
                                                       print_file_lines filename x.pos.line_start x.pos.line_end;
