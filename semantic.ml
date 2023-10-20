@@ -138,9 +138,6 @@ and sem_expr (e:expr) =
   | EInt(i,_)               ->  EInteger([])
   | EChar(c,_)              ->  ECharacter([])
   | EFuncCall(id,elst,pos)  ->  begin
-                                  if (id = (get_main_fun ()).id && (List.length !curr_fun) = 2)
-                                  then (error "Function \"%s\" is the main function and it cannot call itself.\n" id; print_file_lines filename pos.line_start pos.line_end; exit 1)
-                                  else
                                     let
                                       fn,i = (match lookup id with
                                             | Some(Efuncdef(decl, b),i) -> b := true; (* used *) decl,i
@@ -148,14 +145,17 @@ and sem_expr (e:expr) =
                                             | _ -> failwith "sem_expr")
                                     in
                                       (let curr_fn = List.hd !curr_fun in
-                                      if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
-                                      if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
-                                      then fn.ret
-                                      else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
-                                            print_file_lines filename fn.pos.line_start fn.pos.line_end;
-                                            printf "\nUsed in:\n";
-                                            print_file_lines filename pos.line_start pos.line_end;
-                                            exit 1))
+                                      if (i = -1 && id = (get_main_fun ()).id) then
+                                        (error "Main Function \"%s\" is not callable.\n" (get_main_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      else
+                                        if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
+                                        if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
+                                        then fn.ret
+                                        else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
+                                              print_file_lines filename fn.pos.line_start fn.pos.line_end;
+                                              printf "\nUsed in:\n";
+                                              print_file_lines filename pos.line_start pos.line_end;
+                                              exit 1))
                                     end
   | EBinOp(bop,e1,e2,pos)   ->  let
                                   t1=(sem_expr e1) and t2=(sem_expr e2)
@@ -191,9 +191,6 @@ let rec sem_stmt (s:stmt) =
   | EEmpty(pos)             ->  warning "Empty statement\n"; print_file_lines filename pos.line_start pos.line_end
   | EBlock(b,_)             ->  sem_block b
   | ECallFunc(x,y,pos)      ->  begin
-                                  if ((get_curr_fun ()).id = (get_main_fun ()).id && (List.length !curr_fun) = 2)
-                                  then (error "Function \"%s\" is the main function and it cannot call itself.\n" (get_curr_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
-                                  else
                                     let
                                       fn,i = match lookup x with
                                             | Some(Efuncdef(decl,b),i) -> b := true; (* used *) decl,i
@@ -209,6 +206,9 @@ let rec sem_stmt (s:stmt) =
                                                     exit 1
                                     in
                                       let curr_fn = List.hd !curr_fun in
+                                      if (i = -1 && x = (get_main_fun()).id)
+                                        then (error "Main Function \"%s\" is not callable.\n" (get_main_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      else 
                                       if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                       if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
                                       then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
