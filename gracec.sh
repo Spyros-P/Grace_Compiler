@@ -84,8 +84,8 @@ else
         mv a.ll $mainname.imm
     else
         ${grc} "$filename" &&
-        llc a.ll -o $mainname.s -relocation-model=pic &&
-        clang -o $mainname.out $mainname.s lib/libmylib.a &&
+        llc a.ll -o $mainname.asm -relocation-model=pic &&
+        clang -o $mainname.out $mainname.asm lib/libmylib.a &&
         mv a.ll $mainname.imm
     fi
 fi
