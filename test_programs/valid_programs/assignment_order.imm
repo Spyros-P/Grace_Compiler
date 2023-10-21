@@ -1,0 +1,61 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@array = private global [3 x [3 x i32]] zeroinitializer
+@"First\0A" = private constant [7 x i8] c"First\0A\00", align 1
+@"Second\0A" = private constant [8 x i8] c"Second\0A\00", align 1
+@"Third\0A" = private constant [7 x i8] c"Third\0A\00", align 1
+@"Fourth\0A" = private constant [8 x i8] c"Fourth\0A\00", align 1
+
+define i32 @main() {
+entry:
+  %0 = call i32 @"test_$1"(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @"First\0A", i32 0, i32 0))
+  %pointer = getelementptr [3 x [3 x i32]], [3 x [3 x i32]]* @array, i32 0, i32 %0
+  %1 = call i32 @"test_$1"(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @"Second\0A", i32 0, i32 0))
+  %pointer1 = getelementptr [3 x i32], [3 x i32]* %pointer, i32 0, i32 %1
+  %2 = call i32 @"test_$1"(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @"Third\0A", i32 0, i32 0))
+  %3 = call i32 @"test_$1"(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @"Fourth\0A", i32 0, i32 0))
+  %4 = call i32 @"sum_$3"(i32 %2, i32 %3)
+  store i32 %4, i32* %pointer1, align 4
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+define i32 @"test_$1"(i8* %0) {
+entry:
+  %activation_record = alloca { i8* }, align 8
+  %ac_record_var = getelementptr inbounds { i8* }, { i8* }* %activation_record, i32 0, i32 0
+  store i8* %0, i8** %ac_record_var, align 8
+  %1 = call i32 @"ret_1_$2"({ i8* }* %activation_record)
+  ret i32 %1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+define i32 @"ret_1_$2"({ i8* }* %0) {
+entry:
+  %ac_record_var = getelementptr inbounds { i8* }, { i8* }* %0, i32 0, i32 0
+  %lval_tmp = load i8*, i8** %ac_record_var, align 8
+  call void @writeString(i8* %lval_tmp)
+  ret i32 1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+define i32 @"sum_$3"(i32 %0, i32 %1) {
+entry:
+  %a = alloca i32, align 4
+  store i32 %0, i32* %a, align 4
+  %b = alloca i32, align 4
+  store i32 %1, i32* %b, align 4
+  %lval_tmp = load i32, i32* %a, align 4
+  %lval_tmp1 = load i32, i32* %b, align 4
+  %addtmp = add i32 %lval_tmp, %lval_tmp1
+  ret i32 %addtmp
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}

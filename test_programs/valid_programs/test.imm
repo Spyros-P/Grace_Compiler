@@ -1,0 +1,38 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@x = private global i32 0
+@"x = " = private constant [5 x i8] c"x = \00", align 1
+@" (before inc)\0A" = private constant [15 x i8] c" (before inc)\0A\00", align 1
+@" (after inc)\0A" = private constant [14 x i8] c" (after inc)\0A\00", align 1
+
+define i32 @main() {
+entry:
+  store i32 0, i32* @x, align 4
+  call void @writeString(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @"x = ", i32 0, i32 0))
+  %lval_tmp = load i32, i32* @x, align 4
+  call void @writeInteger(i32 %lval_tmp)
+  call void @writeString(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @" (before inc)\0A", i32 0, i32 0))
+  call void @"inc_$1"(i32* @x)
+  call void @writeString(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @"x = ", i32 0, i32 0))
+  %lval_tmp1 = load i32, i32* @x, align 4
+  call void @writeInteger(i32 %lval_tmp1)
+  call void @writeString(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @" (after inc)\0A", i32 0, i32 0))
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+declare void @writeInteger(i32)
+
+define void @"inc_$1"(i32* %0) {
+entry:
+  %y = alloca i32*, align 8
+  store i32* %0, i32** %y, align 8
+  %lval_tmp = load i32*, i32** %y, align 8
+  %lval_tmp1 = load i32*, i32** %y, align 8
+  %lval_tmp2 = load i32, i32* %lval_tmp1, align 4
+  %addtmp = add i32 %lval_tmp2, 1
+  store i32 %addtmp, i32* %lval_tmp, align 4
+  ret void
+}

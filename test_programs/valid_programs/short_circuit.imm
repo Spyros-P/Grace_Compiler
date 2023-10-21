@@ -1,0 +1,41 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@"You should NOT see the message!\0A" = private constant [33 x i8] c"You should NOT see the message!\0A\00", align 1
+@"Condition correctly evaluated!\0A" = private constant [32 x i8] c"Condition correctly evaluated!\0A\00", align 1
+@"Condition wrongly evaluated!\0A" = private constant [30 x i8] c"Condition wrongly evaluated!\0A\00", align 1
+
+define i32 @main() {
+entry:
+  br label %cond
+
+cond:                                             ; preds = %entry
+  br i1 true, label %then, label %or_no_short
+
+then:                                             ; preds = %cond, %or_no_short
+  call void @writeString(i8* getelementptr inbounds ([32 x i8], [32 x i8]* @"Condition correctly evaluated!\0A", i32 0, i32 0))
+  br label %after
+
+else:                                             ; preds = %or_no_short
+  call void @writeString(i8* getelementptr inbounds ([30 x i8], [30 x i8]* @"Condition wrongly evaluated!\0A", i32 0, i32 0))
+  br label %after
+
+after:                                            ; preds = %else, %then
+  ret i32 0
+
+or_no_short:                                      ; preds = %cond
+  %0 = call i32 @"ret_1_$1"()
+  %equaltmp = icmp eq i32 1, %0
+  br i1 %equaltmp, label %then, label %else
+}
+
+declare void @writeString(i8*)
+
+define i32 @"ret_1_$1"() {
+entry:
+  call void @writeString(i8* getelementptr inbounds ([33 x i8], [33 x i8]* @"You should NOT see the message!\0A", i32 0, i32 0))
+  ret i32 1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}

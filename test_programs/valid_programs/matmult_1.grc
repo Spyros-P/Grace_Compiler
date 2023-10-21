@@ -1,6 +1,4 @@
 fun main() : nothing
-
-
     fun print(ref A : int[3][3]; N : int) : nothing
         var i,j : int;
     {

@@ -1,0 +1,147 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@myset = private global [5 x i8] zeroinitializer
+@abcde = private constant [6 x i8] c"abcde\00", align 1
+
+define i32 @main() {
+entry:
+  call void @strcpy(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @myset, i32 0, i32 0), i8* getelementptr inbounds ([6 x i8], [6 x i8]* @abcde, i32 0, i32 0))
+  call void @"powerset_$2"(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @myset, i32 0, i32 0))
+  ret i32 0
+}
+
+declare void @writeChar(i8)
+
+declare i32 @strlen(i8*)
+
+declare void @strcpy(i8*, i8*)
+
+define i32 @"power_$1"(i32 %0, i32 %1) {
+entry:
+  %temp = alloca i32, align 4
+  %base = alloca i32, align 4
+  store i32 %0, i32* %base, align 4
+  %exponent = alloca i32, align 4
+  store i32 %1, i32* %exponent, align 4
+  store i32 0, i32* %temp, align 4
+  br label %cond
+
+cond:                                             ; preds = %entry
+  %lval_tmp = load i32, i32* %exponent, align 4
+  %equaltmp = icmp eq i32 %lval_tmp, 0
+  br i1 %equaltmp, label %then, label %after
+
+then:                                             ; preds = %cond
+  ret i32 1
+
+after:                                            ; preds = %after_ret, %cond
+  %lval_tmp1 = load i32, i32* %base, align 4
+  %lval_tmp2 = load i32, i32* %exponent, align 4
+  %divtmp = sdiv i32 %lval_tmp2, 2
+  %2 = call i32 @"power_$1"(i32 %lval_tmp1, i32 %divtmp)
+  store i32 %2, i32* %temp, align 4
+  br label %cond3
+
+after_ret:                                        ; No predecessors!
+  br label %after
+
+cond3:                                            ; preds = %after
+  %lval_tmp6 = load i32, i32* %exponent, align 4
+  %modtmp = srem i32 %lval_tmp6, 2
+  %equaltmp7 = icmp eq i32 %modtmp, 0
+  br i1 %equaltmp7, label %then4, label %else
+
+then4:                                            ; preds = %cond3
+  %lval_tmp8 = load i32, i32* %temp, align 4
+  %lval_tmp9 = load i32, i32* %temp, align 4
+  %multmp = mul i32 %lval_tmp8, %lval_tmp9
+  ret i32 %multmp
+
+else:                                             ; preds = %cond3
+  %lval_tmp11 = load i32, i32* %base, align 4
+  %lval_tmp12 = load i32, i32* %temp, align 4
+  %multmp13 = mul i32 %lval_tmp11, %lval_tmp12
+  %lval_tmp14 = load i32, i32* %temp, align 4
+  %multmp15 = mul i32 %multmp13, %lval_tmp14
+  ret i32 %multmp15
+
+after5:                                           ; preds = %after_ret16, %after_ret10
+  ret i32 0
+
+after_ret10:                                      ; No predecessors!
+  br label %after5
+
+after_ret16:                                      ; No predecessors!
+  br label %after5
+}
+
+define void @"powerset_$2"(i8* %0) {
+entry:
+  %size = alloca i32, align 4
+  %powerset_size = alloca i32, align 4
+  %counter = alloca i32, align 4
+  %j = alloca i32, align 4
+  %set = alloca i8*, align 8
+  store i8* %0, i8** %set, align 8
+  %lval_tmp = load i8*, i8** %set, align 8
+  %1 = call i32 @strlen(i8* %lval_tmp)
+  store i32 %1, i32* %size, align 4
+  %lval_tmp1 = load i32, i32* %size, align 4
+  %2 = call i32 @"power_$1"(i32 2, i32 %lval_tmp1)
+  store i32 %2, i32* %powerset_size, align 4
+  store i32 0, i32* %counter, align 4
+  br label %cond
+
+cond:                                             ; preds = %after6, %entry
+  %lval_tmp2 = load i32, i32* %counter, align 4
+  %lval_tmp3 = load i32, i32* %powerset_size, align 4
+  %lesstmp = icmp slt i32 %lval_tmp2, %lval_tmp3
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  store i32 0, i32* %j, align 4
+  br label %cond4
+
+after:                                            ; preds = %cond
+  ret void
+
+cond4:                                            ; preds = %after11, %body
+  %lval_tmp7 = load i32, i32* %j, align 4
+  %lval_tmp8 = load i32, i32* %size, align 4
+  %lesstmp9 = icmp slt i32 %lval_tmp7, %lval_tmp8
+  br i1 %lesstmp9, label %body5, label %after6
+
+body5:                                            ; preds = %cond4
+  br label %cond10
+
+after6:                                           ; preds = %cond4
+  call void @writeChar(i8 10)
+  %lval_tmp18 = load i32, i32* %counter, align 4
+  %addtmp19 = add i32 %lval_tmp18, 1
+  store i32 %addtmp19, i32* %counter, align 4
+  br label %cond
+
+cond10:                                           ; preds = %body5
+  %lval_tmp12 = load i32, i32* %counter, align 4
+  %lval_tmp13 = load i32, i32* %j, align 4
+  %3 = call i32 @"power_$1"(i32 2, i32 %lval_tmp13)
+  %divtmp = sdiv i32 %lval_tmp12, %3
+  %modtmp = srem i32 %divtmp, 2
+  %equaltmp = icmp eq i32 %modtmp, 1
+  br i1 %equaltmp, label %then, label %after11
+
+then:                                             ; preds = %cond10
+  %lval_tmp14 = load i32, i32* %j, align 4
+  %lval_tmp15 = load i8*, i8** %set, align 8
+  %pointer = getelementptr i8, i8* %lval_tmp15, i32 %lval_tmp14
+  %lval_tmp16 = load i8, i8* %pointer, align 1
+  call void @writeChar(i8 %lval_tmp16)
+  br label %after11
+
+after11:                                          ; preds = %then, %cond10
+  %lval_tmp17 = load i32, i32* %j, align 4
+  %addtmp = add i32 %lval_tmp17, 1
+  store i32 %addtmp, i32* %j, align 4
+  br label %cond4
+}

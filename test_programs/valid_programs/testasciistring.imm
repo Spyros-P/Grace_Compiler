@@ -1,0 +1,99 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@alphabet = private global [26 x i8] zeroinitializer
+@capitals = private global [26 x i8] zeroinitializer
+@tempchar = private global i8 0
+@tempascii = private global i32 0
+@limit = private global i32 0
+@counter = private global i32 0
+@abcdefghijklmnopqrstuvwxyz = private constant [27 x i8] c"abcdefghijklmnopqrstuvwxyz\00", align 1
+@ABCDEFGHIJKLMNOPQRSTUVWXYZ = private constant [27 x i8] c"ABCDEFGHIJKLMNOPQRSTUVWXYZ\00", align 1
+@"Testing lowercase alphabet:\0A" = private constant [29 x i8] c"Testing lowercase alphabet:\0A\00", align 1
+@"The ASCII value of " = private constant [20 x i8] c"The ASCII value of \00", align 1
+@" is " = private constant [5 x i8] c" is \00", align 1
+@"\0A" = private constant [2 x i8] c"\0A\00", align 1
+@"Testing uppercase alphabet:\0A" = private constant [29 x i8] c"Testing uppercase alphabet:\0A\00", align 1
+
+define i32 @main() {
+entry:
+  call void @strcpy(i8* getelementptr inbounds ([26 x i8], [26 x i8]* @alphabet, i32 0, i32 0), i8* getelementptr inbounds ([27 x i8], [27 x i8]* @abcdefghijklmnopqrstuvwxyz, i32 0, i32 0))
+  call void @strcpy(i8* getelementptr inbounds ([26 x i8], [26 x i8]* @capitals, i32 0, i32 0), i8* getelementptr inbounds ([27 x i8], [27 x i8]* @ABCDEFGHIJKLMNOPQRSTUVWXYZ, i32 0, i32 0))
+  store i32 26, i32* @limit, align 4
+  store i32 0, i32* @counter, align 4
+  call void @writeString(i8* getelementptr inbounds ([29 x i8], [29 x i8]* @"Testing lowercase alphabet:\0A", i32 0, i32 0))
+  br label %cond
+
+cond:                                             ; preds = %body, %entry
+  %lval_tmp = load i32, i32* @counter, align 4
+  %lval_tmp1 = load i32, i32* @limit, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %lval_tmp2 = load i32, i32* @counter, align 4
+  %pointer = getelementptr [26 x i8], [26 x i8]* @alphabet, i32 0, i32 %lval_tmp2
+  %lval_tmp3 = load i8, i8* %pointer, align 1
+  store i8 %lval_tmp3, i8* @tempchar, align 1
+  %lval_tmp4 = load i8, i8* @tempchar, align 1
+  %0 = call i32 @ascii(i8 %lval_tmp4)
+  store i32 %0, i32* @tempascii, align 4
+  call void @writeString(i8* getelementptr inbounds ([20 x i8], [20 x i8]* @"The ASCII value of ", i32 0, i32 0))
+  %lval_tmp5 = load i8, i8* @tempchar, align 1
+  call void @writeChar(i8 %lval_tmp5)
+  call void @writeString(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @" is ", i32 0, i32 0))
+  %lval_tmp6 = load i32, i32* @tempascii, align 4
+  call void @writeInteger(i32 %lval_tmp6)
+  call void @writeString(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @"\0A", i32 0, i32 0))
+  %lval_tmp7 = load i32, i32* @counter, align 4
+  %addtmp = add i32 %lval_tmp7, 1
+  store i32 %addtmp, i32* @counter, align 4
+  br label %cond
+
+after:                                            ; preds = %cond
+  call void @writeString(i8* getelementptr inbounds ([29 x i8], [29 x i8]* @"Testing uppercase alphabet:\0A", i32 0, i32 0))
+  store i32 0, i32* @counter, align 4
+  br label %cond8
+
+cond8:                                            ; preds = %body9, %after
+  %lval_tmp11 = load i32, i32* @counter, align 4
+  %lval_tmp12 = load i32, i32* @limit, align 4
+  %lesstmp13 = icmp slt i32 %lval_tmp11, %lval_tmp12
+  br i1 %lesstmp13, label %body9, label %after10
+
+body9:                                            ; preds = %cond8
+  %lval_tmp14 = load i32, i32* @counter, align 4
+  %pointer15 = getelementptr [26 x i8], [26 x i8]* @capitals, i32 0, i32 %lval_tmp14
+  %lval_tmp16 = load i8, i8* %pointer15, align 1
+  store i8 %lval_tmp16, i8* @tempchar, align 1
+  %lval_tmp17 = load i8, i8* @tempchar, align 1
+  %1 = call i32 @ascii(i8 %lval_tmp17)
+  store i32 %1, i32* @tempascii, align 4
+  call void @writeString(i8* getelementptr inbounds ([20 x i8], [20 x i8]* @"The ASCII value of ", i32 0, i32 0))
+  %lval_tmp18 = load i8, i8* @tempchar, align 1
+  call void @writeChar(i8 %lval_tmp18)
+  call void @writeString(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @" is ", i32 0, i32 0))
+  %lval_tmp19 = load i32, i32* @tempascii, align 4
+  call void @writeInteger(i32 %lval_tmp19)
+  call void @writeString(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @"\0A", i32 0, i32 0))
+  %lval_tmp20 = load i32, i32* @counter, align 4
+  %addtmp21 = add i32 %lval_tmp20, 1
+  store i32 %addtmp21, i32* @counter, align 4
+  br label %cond8
+
+after10:                                          ; preds = %cond8
+  ret i32 0
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+declare void @writeChar(i8)
+
+declare void @writeInteger(i32)
+
+declare i32 @ascii(i8)
+
+declare void @strcpy(i8*, i8*)

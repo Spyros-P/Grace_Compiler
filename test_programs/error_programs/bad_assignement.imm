@@ -1,0 +1,12 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@x = private global [10 x i32] zeroinitializer
+@y = private global [10 x i32] zeroinitializer
+
+define i32 @main() {
+entry:
+  %lval_tmp = load [10 x i32], [10 x i32]* @y, align 4
+  store [10 x i32] %lval_tmp, [10 x i32]* @x, align 4
+  ret i32 0
+}

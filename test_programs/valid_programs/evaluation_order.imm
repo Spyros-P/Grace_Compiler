@@ -1,0 +1,54 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@first = private constant [6 x i8] c"first\00", align 1
+@second = private constant [7 x i8] c"second\00", align 1
+@third = private constant [6 x i8] c"third\00", align 1
+
+define i32 @main() {
+entry:
+  %0 = call i32 @"test_$1"(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @first, i32 0, i32 0))
+  %1 = call i32 @"test_$1"(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @second, i32 0, i32 0))
+  %2 = call i32 @"test_$1"(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @third, i32 0, i32 0))
+  call void @"do_nothing_$3"(i32 %0, i32 %1, i32 %2)
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+define i32 @"test_$1"(i8* %0) {
+entry:
+  %activation_record = alloca { i8* }, align 8
+  %ac_record_var = getelementptr inbounds { i8* }, { i8* }* %activation_record, i32 0, i32 0
+  store i8* %0, i8** %ac_record_var, align 8
+  %1 = call i32 @"ret_1_$2"({ i8* }* %activation_record)
+  ret i32 %1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+define i32 @"ret_1_$2"({ i8* }* %0) {
+entry:
+  %ac_record_var = getelementptr inbounds { i8* }, { i8* }* %0, i32 0, i32 0
+  %lval_tmp = load i8*, i8** %ac_record_var, align 8
+  call void @writeString(i8* %lval_tmp)
+  ret i32 1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+define void @"do_nothing_$3"(i32 %0, i32 %1, i32 %2) {
+entry:
+  %a = alloca i32, align 4
+  store i32 %0, i32* %a, align 4
+  %b = alloca i32, align 4
+  store i32 %1, i32* %b, align 4
+  %c = alloca i32, align 4
+  store i32 %2, i32* %c, align 4
+  ret void
+
+after_ret:                                        ; No predecessors!
+  ret void
+}

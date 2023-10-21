@@ -1,0 +1,308 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@storage = private global [421742 x i32] zeroinitializer
+@", " = private constant [3 x i8] c", \00", align 1
+@"\0A" = private constant [2 x i8] c"\0A\00", align 1
+@seed = private global i32 0
+@i = private global i32 0
+@N = private global i32 0
+@x = private global [421742 x i32] zeroinitializer
+@"Initial array: " = private constant [16 x i8] c"Initial array: \00", align 1
+@"Sorted  array: " = private constant [16 x i8] c"Sorted  array: \00", align 1
+
+define i32 @main() {
+entry:
+  store i32 421742, i32* @N, align 4
+  store i32 65, i32* @seed, align 4
+  store i32 0, i32* @i, align 4
+  br label %cond
+
+cond:                                             ; preds = %body, %entry
+  %lval_tmp = load i32, i32* @i, align 4
+  %lval_tmp1 = load i32, i32* @N, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %lval_tmp2 = load i32, i32* @seed, align 4
+  %multmp = mul i32 %lval_tmp2, 137
+  %addtmp = add i32 %multmp, 221
+  %lval_tmp3 = load i32, i32* @i, align 4
+  %addtmp4 = add i32 %addtmp, %lval_tmp3
+  %modtmp = srem i32 %addtmp4, 101
+  store i32 %modtmp, i32* @seed, align 4
+  %lval_tmp5 = load i32, i32* @i, align 4
+  %pointer = getelementptr [421742 x i32], [421742 x i32]* @x, i32 0, i32 %lval_tmp5
+  %lval_tmp6 = load i32, i32* @seed, align 4
+  store i32 %lval_tmp6, i32* %pointer, align 4
+  %lval_tmp7 = load i32, i32* @i, align 4
+  %addtmp8 = add i32 %lval_tmp7, 1
+  store i32 %addtmp8, i32* @i, align 4
+  br label %cond
+
+after:                                            ; preds = %cond
+  %lval_tmp9 = load i32, i32* @N, align 4
+  call void @"writeArray_$3"(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @"Initial array: ", i32 0, i32 0), i32 %lval_tmp9, i32* getelementptr inbounds ([421742 x i32], [421742 x i32]* @x, i32 0, i32 0))
+  %lval_tmp10 = load i32, i32* @N, align 4
+  %subtmp = sub i32 %lval_tmp10, 1
+  call void @"mergeSort_$1"(i32* getelementptr inbounds ([421742 x i32], [421742 x i32]* @x, i32 0, i32 0), i32 0, i32 %subtmp)
+  %lval_tmp11 = load i32, i32* @N, align 4
+  call void @"writeArray_$3"(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @"Sorted  array: ", i32 0, i32 0), i32 %lval_tmp11, i32* getelementptr inbounds ([421742 x i32], [421742 x i32]* @x, i32 0, i32 0))
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+declare void @writeInteger(i32)
+
+define void @"mergeSort_$1"(i32* %0, i32 %1, i32 %2) {
+entry:
+  %m = alloca i32, align 4
+  %arr = alloca i32*, align 8
+  store i32* %0, i32** %arr, align 8
+  %l = alloca i32, align 4
+  store i32 %1, i32* %l, align 4
+  %r = alloca i32, align 4
+  store i32 %2, i32* %r, align 4
+  br label %cond
+
+cond:                                             ; preds = %entry
+  %lval_tmp = load i32, i32* %l, align 4
+  %lval_tmp1 = load i32, i32* %r, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %then, label %after
+
+then:                                             ; preds = %cond
+  %lval_tmp2 = load i32, i32* %l, align 4
+  %lval_tmp3 = load i32, i32* %r, align 4
+  %lval_tmp4 = load i32, i32* %l, align 4
+  %subtmp = sub i32 %lval_tmp3, %lval_tmp4
+  %divtmp = sdiv i32 %subtmp, 2
+  %addtmp = add i32 %lval_tmp2, %divtmp
+  store i32 %addtmp, i32* %m, align 4
+  %lval_tmp5 = load i32*, i32** %arr, align 8
+  %lval_tmp6 = load i32, i32* %l, align 4
+  %lval_tmp7 = load i32, i32* %m, align 4
+  call void @"mergeSort_$1"(i32* %lval_tmp5, i32 %lval_tmp6, i32 %lval_tmp7)
+  %lval_tmp8 = load i32*, i32** %arr, align 8
+  %lval_tmp9 = load i32, i32* %m, align 4
+  %addtmp10 = add i32 %lval_tmp9, 1
+  %lval_tmp11 = load i32, i32* %r, align 4
+  call void @"mergeSort_$1"(i32* %lval_tmp8, i32 %addtmp10, i32 %lval_tmp11)
+  %lval_tmp12 = load i32*, i32** %arr, align 8
+  %lval_tmp13 = load i32, i32* %l, align 4
+  %lval_tmp14 = load i32, i32* %m, align 4
+  %lval_tmp15 = load i32, i32* %r, align 4
+  call void @"merge_$2"(i32* %lval_tmp12, i32 %lval_tmp13, i32 %lval_tmp14, i32 %lval_tmp15)
+  br label %after
+
+after:                                            ; preds = %then, %cond
+  ret void
+}
+
+define void @"merge_$2"(i32* %0, i32 %1, i32 %2, i32 %3) {
+entry:
+  %i = alloca i32, align 4
+  %j = alloca i32, align 4
+  %tmp = alloca i32, align 4
+  %counter = alloca i32, align 4
+  %arr = alloca i32*, align 8
+  store i32* %0, i32** %arr, align 8
+  %l = alloca i32, align 4
+  store i32 %1, i32* %l, align 4
+  %m = alloca i32, align 4
+  store i32 %2, i32* %m, align 4
+  %r = alloca i32, align 4
+  store i32 %3, i32* %r, align 4
+  %lval_tmp = load i32, i32* %l, align 4
+  store i32 %lval_tmp, i32* %counter, align 4
+  br label %cond
+
+cond:                                             ; preds = %body, %entry
+  %lval_tmp1 = load i32, i32* %counter, align 4
+  %lval_tmp2 = load i32, i32* %r, align 4
+  %lesseqtmp = icmp sle i32 %lval_tmp1, %lval_tmp2
+  br i1 %lesseqtmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %lval_tmp3 = load i32, i32* %counter, align 4
+  %pointer = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp3
+  %lval_tmp4 = load i32, i32* %counter, align 4
+  %lval_tmp5 = load i32*, i32** %arr, align 8
+  %pointer6 = getelementptr i32, i32* %lval_tmp5, i32 %lval_tmp4
+  %lval_tmp7 = load i32, i32* %pointer6, align 4
+  store i32 %lval_tmp7, i32* %pointer, align 4
+  %lval_tmp8 = load i32, i32* %counter, align 4
+  %addtmp = add i32 %lval_tmp8, 1
+  store i32 %addtmp, i32* %counter, align 4
+  br label %cond
+
+after:                                            ; preds = %cond
+  %lval_tmp9 = load i32, i32* %l, align 4
+  store i32 %lval_tmp9, i32* %counter, align 4
+  %lval_tmp10 = load i32, i32* %l, align 4
+  store i32 %lval_tmp10, i32* %i, align 4
+  %lval_tmp11 = load i32, i32* %m, align 4
+  %addtmp12 = add i32 %lval_tmp11, 1
+  store i32 %addtmp12, i32* %j, align 4
+  br label %cond13
+
+cond13:                                           ; preds = %after23, %after
+  %lval_tmp19 = load i32, i32* %i, align 4
+  %lval_tmp20 = load i32, i32* %m, align 4
+  %lesseqtmp21 = icmp sle i32 %lval_tmp19, %lval_tmp20
+  br i1 %lesseqtmp21, label %and_no_short, label %after15
+
+body14:                                           ; preds = %and_no_short
+  br label %cond22
+
+after15:                                          ; preds = %cond13, %and_no_short
+  br label %cond48
+
+and_no_short:                                     ; preds = %cond13
+  %lval_tmp16 = load i32, i32* %j, align 4
+  %lval_tmp17 = load i32, i32* %r, align 4
+  %lesseqtmp18 = icmp sle i32 %lval_tmp16, %lval_tmp17
+  br i1 %lesseqtmp18, label %body14, label %after15
+
+cond22:                                           ; preds = %body14
+  %lval_tmp24 = load i32, i32* %i, align 4
+  %pointer25 = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp24
+  %lval_tmp26 = load i32, i32* %pointer25, align 4
+  %lval_tmp27 = load i32, i32* %j, align 4
+  %pointer28 = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp27
+  %lval_tmp29 = load i32, i32* %pointer28, align 4
+  %lesstmp = icmp slt i32 %lval_tmp26, %lval_tmp29
+  br i1 %lesstmp, label %then, label %else
+
+then:                                             ; preds = %cond22
+  %lval_tmp30 = load i32, i32* %counter, align 4
+  %lval_tmp31 = load i32*, i32** %arr, align 8
+  %pointer32 = getelementptr i32, i32* %lval_tmp31, i32 %lval_tmp30
+  %lval_tmp33 = load i32, i32* %i, align 4
+  %pointer34 = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp33
+  %lval_tmp35 = load i32, i32* %pointer34, align 4
+  store i32 %lval_tmp35, i32* %pointer32, align 4
+  %lval_tmp36 = load i32, i32* %i, align 4
+  %addtmp37 = add i32 %lval_tmp36, 1
+  store i32 %addtmp37, i32* %i, align 4
+  br label %after23
+
+else:                                             ; preds = %cond22
+  %lval_tmp38 = load i32, i32* %counter, align 4
+  %lval_tmp39 = load i32*, i32** %arr, align 8
+  %pointer40 = getelementptr i32, i32* %lval_tmp39, i32 %lval_tmp38
+  %lval_tmp41 = load i32, i32* %j, align 4
+  %pointer42 = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp41
+  %lval_tmp43 = load i32, i32* %pointer42, align 4
+  store i32 %lval_tmp43, i32* %pointer40, align 4
+  %lval_tmp44 = load i32, i32* %j, align 4
+  %addtmp45 = add i32 %lval_tmp44, 1
+  store i32 %addtmp45, i32* %j, align 4
+  br label %after23
+
+after23:                                          ; preds = %else, %then
+  %lval_tmp46 = load i32, i32* %counter, align 4
+  %addtmp47 = add i32 %lval_tmp46, 1
+  store i32 %addtmp47, i32* %counter, align 4
+  br label %cond13
+
+cond48:                                           ; preds = %body49, %after15
+  %lval_tmp51 = load i32, i32* %i, align 4
+  %lval_tmp52 = load i32, i32* %m, align 4
+  %lesseqtmp53 = icmp sle i32 %lval_tmp51, %lval_tmp52
+  br i1 %lesseqtmp53, label %body49, label %after50
+
+body49:                                           ; preds = %cond48
+  %lval_tmp54 = load i32, i32* %counter, align 4
+  %lval_tmp55 = load i32*, i32** %arr, align 8
+  %pointer56 = getelementptr i32, i32* %lval_tmp55, i32 %lval_tmp54
+  %lval_tmp57 = load i32, i32* %i, align 4
+  %pointer58 = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp57
+  %lval_tmp59 = load i32, i32* %pointer58, align 4
+  store i32 %lval_tmp59, i32* %pointer56, align 4
+  %lval_tmp60 = load i32, i32* %i, align 4
+  %addtmp61 = add i32 %lval_tmp60, 1
+  store i32 %addtmp61, i32* %i, align 4
+  %lval_tmp62 = load i32, i32* %counter, align 4
+  %addtmp63 = add i32 %lval_tmp62, 1
+  store i32 %addtmp63, i32* %counter, align 4
+  br label %cond48
+
+after50:                                          ; preds = %cond48
+  br label %cond64
+
+cond64:                                           ; preds = %body65, %after50
+  %lval_tmp67 = load i32, i32* %j, align 4
+  %lval_tmp68 = load i32, i32* %r, align 4
+  %lesseqtmp69 = icmp sle i32 %lval_tmp67, %lval_tmp68
+  br i1 %lesseqtmp69, label %body65, label %after66
+
+body65:                                           ; preds = %cond64
+  %lval_tmp70 = load i32, i32* %counter, align 4
+  %lval_tmp71 = load i32*, i32** %arr, align 8
+  %pointer72 = getelementptr i32, i32* %lval_tmp71, i32 %lval_tmp70
+  %lval_tmp73 = load i32, i32* %j, align 4
+  %pointer74 = getelementptr [421742 x i32], [421742 x i32]* @storage, i32 0, i32 %lval_tmp73
+  %lval_tmp75 = load i32, i32* %pointer74, align 4
+  store i32 %lval_tmp75, i32* %pointer72, align 4
+  %lval_tmp76 = load i32, i32* %j, align 4
+  %addtmp77 = add i32 %lval_tmp76, 1
+  store i32 %addtmp77, i32* %j, align 4
+  %lval_tmp78 = load i32, i32* %counter, align 4
+  %addtmp79 = add i32 %lval_tmp78, 1
+  store i32 %addtmp79, i32* %counter, align 4
+  br label %cond64
+
+after66:                                          ; preds = %cond64
+  ret void
+}
+
+define void @"writeArray_$3"(i8* %0, i32 %1, i32* %2) {
+entry:
+  %i = alloca i32, align 4
+  %msg = alloca i8*, align 8
+  store i8* %0, i8** %msg, align 8
+  %n = alloca i32, align 4
+  store i32 %1, i32* %n, align 4
+  %x = alloca i32*, align 8
+  store i32* %2, i32** %x, align 8
+  %lval_tmp = load i8*, i8** %msg, align 8
+  call void @writeString(i8* %lval_tmp)
+  store i32 0, i32* %i, align 4
+  br label %cond
+
+cond:                                             ; preds = %after4, %entry
+  %lval_tmp1 = load i32, i32* %i, align 4
+  %lval_tmp2 = load i32, i32* %n, align 4
+  %lesstmp = icmp slt i32 %lval_tmp1, %lval_tmp2
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  br label %cond3
+
+after:                                            ; preds = %cond
+  call void @writeString(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @"\0A", i32 0, i32 0))
+  ret void
+
+cond3:                                            ; preds = %body
+  %lval_tmp5 = load i32, i32* %i, align 4
+  %greatertmp = icmp sgt i32 %lval_tmp5, 0
+  br i1 %greatertmp, label %then, label %after4
+
+then:                                             ; preds = %cond3
+  call void @writeString(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @", ", i32 0, i32 0))
+  br label %after4
+
+after4:                                           ; preds = %then, %cond3
+  %lval_tmp6 = load i32, i32* %i, align 4
+  %lval_tmp7 = load i32*, i32** %x, align 8
+  %pointer = getelementptr i32, i32* %lval_tmp7, i32 %lval_tmp6
+  %lval_tmp8 = load i32, i32* %pointer, align 4
+  call void @writeInteger(i32 %lval_tmp8)
+  %lval_tmp9 = load i32, i32* %i, align 4
+  %addtmp = add i32 %lval_tmp9, 1
+  store i32 %addtmp, i32* %i, align 4
+  br label %cond
+}

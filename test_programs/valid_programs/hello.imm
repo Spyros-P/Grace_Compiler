@@ -1,0 +1,12 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@"Hello world!\0A" = private constant [14 x i8] c"Hello world!\0A\00", align 1
+
+define i32 @main() {
+entry:
+  call void @writeString(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @"Hello world!\0A", i32 0, i32 0))
+  ret i32 0
+}
+
+declare void @writeString(i8*)

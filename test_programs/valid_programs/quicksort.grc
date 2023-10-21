@@ -1,0 +1,96 @@
+fun main() : nothing 
+
+    fun swap(ref a,b : int) : nothing
+        var tmp : int;
+    {
+    tmp <- a;
+    a <- b;
+    b <- tmp;
+    }
+
+    fun partition(ref array : int[]; low,high : int) : int
+        var i,j,pivot : int;
+    {
+    
+    $ select the rightmost element as pivot
+    pivot <- array[high];
+    
+    $ pointer for greater element
+    i <- low - 1;
+
+    $ traverse each element of the array
+    $ compare them with the pivot
+    j <- low;
+    while (j < high) do {
+        if (array[j] <= pivot) then {
+            
+        $ if element smaller than pivot is found
+        $ swap it with the greater element pointed by i
+        i <- i+1;
+        
+        $ swap element at i with element at j
+        swap(array[i], array[j]);
+        }
+        j <- j+1;
+    }
+
+    $ swap the pivot element with the greater element at i
+    swap(array[i + 1], array[high]);
+    
+    $ return the partition point
+    return (i + 1);
+    }
+
+    fun quickSort(ref array : int[]; low,high : int) : nothing
+        var pi : int;
+    {
+    if (low < high) then {
+        
+        $ find the pivot element such that
+        $ elements smaller than pivot are on left of pivot
+        $ elements greater than pivot are on right of pivot
+        pi <- partition(array, low, high);
+        
+        $ recursive call on the left of pivot
+        quickSort(array, low, pi - 1);
+        
+        $ recursive call on the right of pivot
+        quickSort(array, pi + 1, high);
+    }
+    }
+
+    $ function to print array elements
+    fun printArray(ref array : int[]; size : int) : nothing
+        var i : int;
+    {
+        i<- 0;
+        while (i < size) do {
+            writeInteger(array[i]);
+            writeString("  ");
+            i <- i+1;
+        }
+        writeString("\n");
+    }
+
+    var data : int[421742000];
+    var i,N : int;
+
+$ main function
+{
+    N <- 421742;
+
+    i <- 0;
+    while (i < N) do {
+        data[i] <- ((3*i) mod 10 + i*(i+10)) mod 1000;
+        i <- i+1;
+    }
+    
+    writeString("Unsorted Array\n");
+    $printArray(data, N);
+    
+    $ perform quicksort on data
+    quickSort(data, 0, N-1);
+    
+    writeString("Sorted array in ascending order: \n");
+    $printArray(data, N);
+}

@@ -1,0 +1,44 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@array = private global [3 x [3 x [3 x i32]]] zeroinitializer
+@first = private constant [6 x i8] c"first\00", align 1
+@second = private constant [7 x i8] c"second\00", align 1
+@third = private constant [6 x i8] c"third\00", align 1
+
+define i32 @main() {
+entry:
+  %0 = call i32 @"test_$1"(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @first, i32 0, i32 0))
+  %pointer = getelementptr [3 x [3 x [3 x i32]]], [3 x [3 x [3 x i32]]]* @array, i32 0, i32 %0
+  %1 = call i32 @"test_$1"(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @second, i32 0, i32 0))
+  %pointer1 = getelementptr [3 x [3 x i32]], [3 x [3 x i32]]* %pointer, i32 0, i32 %1
+  %2 = call i32 @"test_$1"(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @third, i32 0, i32 0))
+  %pointer2 = getelementptr [3 x i32], [3 x i32]* %pointer1, i32 0, i32 %2
+  store i32 1, i32* %pointer2, align 4
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+define i32 @"test_$1"(i8* %0) {
+entry:
+  %activation_record = alloca { i8* }, align 8
+  %ac_record_var = getelementptr inbounds { i8* }, { i8* }* %activation_record, i32 0, i32 0
+  store i8* %0, i8** %ac_record_var, align 8
+  %1 = call i32 @"ret_1_$2"({ i8* }* %activation_record)
+  ret i32 %1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+define i32 @"ret_1_$2"({ i8* }* %0) {
+entry:
+  %ac_record_var = getelementptr inbounds { i8* }, { i8* }* %0, i32 0, i32 0
+  %lval_tmp = load i8*, i8** %ac_record_var, align 8
+  call void @writeString(i8* %lval_tmp)
+  ret i32 1
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}

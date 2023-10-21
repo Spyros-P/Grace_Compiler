@@ -1,0 +1,34 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@mychar = private global i8 0
+@myascii = private global i32 0
+@"The ascii value of " = private constant [20 x i8] c"The ascii value of \00", align 1
+@" is " = private constant [5 x i8] c" is \00", align 1
+
+define i32 @main() {
+entry:
+  store i8 65, i8* @mychar, align 1
+  %lval_tmp = load i8, i8* @mychar, align 1
+  %0 = call i32 @ascii(i8 %lval_tmp)
+  store i32 %0, i32* @myascii, align 4
+  call void @writeString(i8* getelementptr inbounds ([20 x i8], [20 x i8]* @"The ascii value of ", i32 0, i32 0))
+  %lval_tmp1 = load i8, i8* @mychar, align 1
+  call void @writeChar(i8 %lval_tmp1)
+  call void @writeString(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @" is ", i32 0, i32 0))
+  %lval_tmp2 = load i32, i32* @myascii, align 4
+  call void @writeInteger(i32 %lval_tmp2)
+  call void @writeChar(i8 10)
+  ret i32 0
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+declare void @writeChar(i8)
+
+declare void @writeInteger(i32)
+
+declare i32 @ascii(i8)

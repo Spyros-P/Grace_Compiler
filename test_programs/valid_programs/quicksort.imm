@@ -1,0 +1,222 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@"  " = private constant [3 x i8] c"  \00", align 1
+@"\0A" = private constant [2 x i8] c"\0A\00", align 1
+@data = private global [421742000 x i32] zeroinitializer
+@i = private global i32 0
+@N = private global i32 0
+@"Unsorted Array\0A" = private constant [16 x i8] c"Unsorted Array\0A\00", align 1
+@"Sorted array in ascending order: \0A" = private constant [35 x i8] c"Sorted array in ascending order: \0A\00", align 1
+
+define i32 @main() {
+entry:
+  store i32 421742, i32* @N, align 4
+  store i32 0, i32* @i, align 4
+  br label %cond
+
+cond:                                             ; preds = %body, %entry
+  %lval_tmp = load i32, i32* @i, align 4
+  %lval_tmp1 = load i32, i32* @N, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %lval_tmp2 = load i32, i32* @i, align 4
+  %pointer = getelementptr [421742000 x i32], [421742000 x i32]* @data, i32 0, i32 %lval_tmp2
+  %lval_tmp3 = load i32, i32* @i, align 4
+  %multmp = mul i32 3, %lval_tmp3
+  %modtmp = srem i32 %multmp, 10
+  %lval_tmp4 = load i32, i32* @i, align 4
+  %lval_tmp5 = load i32, i32* @i, align 4
+  %addtmp = add i32 %lval_tmp5, 10
+  %multmp6 = mul i32 %lval_tmp4, %addtmp
+  %addtmp7 = add i32 %modtmp, %multmp6
+  %modtmp8 = srem i32 %addtmp7, 1000
+  store i32 %modtmp8, i32* %pointer, align 4
+  %lval_tmp9 = load i32, i32* @i, align 4
+  %addtmp10 = add i32 %lval_tmp9, 1
+  store i32 %addtmp10, i32* @i, align 4
+  br label %cond
+
+after:                                            ; preds = %cond
+  call void @writeString(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @"Unsorted Array\0A", i32 0, i32 0))
+  %lval_tmp11 = load i32, i32* @N, align 4
+  %subtmp = sub i32 %lval_tmp11, 1
+  call void @"quickSort_$3"(i32* getelementptr inbounds ([421742000 x i32], [421742000 x i32]* @data, i32 0, i32 0), i32 0, i32 %subtmp)
+  call void @writeString(i8* getelementptr inbounds ([35 x i8], [35 x i8]* @"Sorted array in ascending order: \0A", i32 0, i32 0))
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+declare void @writeInteger(i32)
+
+define void @"swap_$1"(i32* %0, i32* %1) {
+entry:
+  %tmp = alloca i32, align 4
+  %a = alloca i32*, align 8
+  store i32* %0, i32** %a, align 8
+  %b = alloca i32*, align 8
+  store i32* %1, i32** %b, align 8
+  %lval_tmp = load i32*, i32** %a, align 8
+  %lval_tmp1 = load i32, i32* %lval_tmp, align 4
+  store i32 %lval_tmp1, i32* %tmp, align 4
+  %lval_tmp2 = load i32*, i32** %a, align 8
+  %lval_tmp3 = load i32*, i32** %b, align 8
+  %lval_tmp4 = load i32, i32* %lval_tmp3, align 4
+  store i32 %lval_tmp4, i32* %lval_tmp2, align 4
+  %lval_tmp5 = load i32*, i32** %b, align 8
+  %lval_tmp6 = load i32, i32* %tmp, align 4
+  store i32 %lval_tmp6, i32* %lval_tmp5, align 4
+  ret void
+}
+
+define i32 @"partition_$2"(i32* %0, i32 %1, i32 %2) {
+entry:
+  %i = alloca i32, align 4
+  %j = alloca i32, align 4
+  %pivot = alloca i32, align 4
+  %array = alloca i32*, align 8
+  store i32* %0, i32** %array, align 8
+  %low = alloca i32, align 4
+  store i32 %1, i32* %low, align 4
+  %high = alloca i32, align 4
+  store i32 %2, i32* %high, align 4
+  %lval_tmp = load i32, i32* %high, align 4
+  %lval_tmp1 = load i32*, i32** %array, align 8
+  %pointer = getelementptr i32, i32* %lval_tmp1, i32 %lval_tmp
+  %lval_tmp2 = load i32, i32* %pointer, align 4
+  store i32 %lval_tmp2, i32* %pivot, align 4
+  %lval_tmp3 = load i32, i32* %low, align 4
+  %subtmp = sub i32 %lval_tmp3, 1
+  store i32 %subtmp, i32* %i, align 4
+  %lval_tmp4 = load i32, i32* %low, align 4
+  store i32 %lval_tmp4, i32* %j, align 4
+  br label %cond
+
+cond:                                             ; preds = %after8, %entry
+  %lval_tmp5 = load i32, i32* %j, align 4
+  %lval_tmp6 = load i32, i32* %high, align 4
+  %lesstmp = icmp slt i32 %lval_tmp5, %lval_tmp6
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  br label %cond7
+
+after:                                            ; preds = %cond
+  %lval_tmp23 = load i32, i32* %i, align 4
+  %addtmp24 = add i32 %lval_tmp23, 1
+  %lval_tmp25 = load i32*, i32** %array, align 8
+  %pointer26 = getelementptr i32, i32* %lval_tmp25, i32 %addtmp24
+  %lval_tmp27 = load i32, i32* %high, align 4
+  %lval_tmp28 = load i32*, i32** %array, align 8
+  %pointer29 = getelementptr i32, i32* %lval_tmp28, i32 %lval_tmp27
+  call void @"swap_$1"(i32* %pointer26, i32* %pointer29)
+  %lval_tmp30 = load i32, i32* %i, align 4
+  %addtmp31 = add i32 %lval_tmp30, 1
+  ret i32 %addtmp31
+
+cond7:                                            ; preds = %body
+  %lval_tmp9 = load i32, i32* %j, align 4
+  %lval_tmp10 = load i32*, i32** %array, align 8
+  %pointer11 = getelementptr i32, i32* %lval_tmp10, i32 %lval_tmp9
+  %lval_tmp12 = load i32, i32* %pointer11, align 4
+  %lval_tmp13 = load i32, i32* %pivot, align 4
+  %lesseqtmp = icmp sle i32 %lval_tmp12, %lval_tmp13
+  br i1 %lesseqtmp, label %then, label %after8
+
+then:                                             ; preds = %cond7
+  %lval_tmp14 = load i32, i32* %i, align 4
+  %addtmp = add i32 %lval_tmp14, 1
+  store i32 %addtmp, i32* %i, align 4
+  %lval_tmp15 = load i32, i32* %i, align 4
+  %lval_tmp16 = load i32*, i32** %array, align 8
+  %pointer17 = getelementptr i32, i32* %lval_tmp16, i32 %lval_tmp15
+  %lval_tmp18 = load i32, i32* %j, align 4
+  %lval_tmp19 = load i32*, i32** %array, align 8
+  %pointer20 = getelementptr i32, i32* %lval_tmp19, i32 %lval_tmp18
+  call void @"swap_$1"(i32* %pointer17, i32* %pointer20)
+  br label %after8
+
+after8:                                           ; preds = %then, %cond7
+  %lval_tmp21 = load i32, i32* %j, align 4
+  %addtmp22 = add i32 %lval_tmp21, 1
+  store i32 %addtmp22, i32* %j, align 4
+  br label %cond
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+define void @"quickSort_$3"(i32* %0, i32 %1, i32 %2) {
+entry:
+  %pi = alloca i32, align 4
+  %array = alloca i32*, align 8
+  store i32* %0, i32** %array, align 8
+  %low = alloca i32, align 4
+  store i32 %1, i32* %low, align 4
+  %high = alloca i32, align 4
+  store i32 %2, i32* %high, align 4
+  br label %cond
+
+cond:                                             ; preds = %entry
+  %lval_tmp = load i32, i32* %low, align 4
+  %lval_tmp1 = load i32, i32* %high, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %then, label %after
+
+then:                                             ; preds = %cond
+  %lval_tmp2 = load i32*, i32** %array, align 8
+  %lval_tmp3 = load i32, i32* %low, align 4
+  %lval_tmp4 = load i32, i32* %high, align 4
+  %3 = call i32 @"partition_$2"(i32* %lval_tmp2, i32 %lval_tmp3, i32 %lval_tmp4)
+  store i32 %3, i32* %pi, align 4
+  %lval_tmp5 = load i32*, i32** %array, align 8
+  %lval_tmp6 = load i32, i32* %low, align 4
+  %lval_tmp7 = load i32, i32* %pi, align 4
+  %subtmp = sub i32 %lval_tmp7, 1
+  call void @"quickSort_$3"(i32* %lval_tmp5, i32 %lval_tmp6, i32 %subtmp)
+  %lval_tmp8 = load i32*, i32** %array, align 8
+  %lval_tmp9 = load i32, i32* %pi, align 4
+  %addtmp = add i32 %lval_tmp9, 1
+  %lval_tmp10 = load i32, i32* %high, align 4
+  call void @"quickSort_$3"(i32* %lval_tmp8, i32 %addtmp, i32 %lval_tmp10)
+  br label %after
+
+after:                                            ; preds = %then, %cond
+  ret void
+}
+
+define void @"printArray_$4"(i32* %0, i32 %1) {
+entry:
+  %i = alloca i32, align 4
+  %array = alloca i32*, align 8
+  store i32* %0, i32** %array, align 8
+  %size = alloca i32, align 4
+  store i32 %1, i32* %size, align 4
+  store i32 0, i32* %i, align 4
+  br label %cond
+
+cond:                                             ; preds = %body, %entry
+  %lval_tmp = load i32, i32* %i, align 4
+  %lval_tmp1 = load i32, i32* %size, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %lval_tmp2 = load i32, i32* %i, align 4
+  %lval_tmp3 = load i32*, i32** %array, align 8
+  %pointer = getelementptr i32, i32* %lval_tmp3, i32 %lval_tmp2
+  %lval_tmp4 = load i32, i32* %pointer, align 4
+  call void @writeInteger(i32 %lval_tmp4)
+  call void @writeString(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @"  ", i32 0, i32 0))
+  %lval_tmp5 = load i32, i32* %i, align 4
+  %addtmp = add i32 %lval_tmp5, 1
+  store i32 %addtmp, i32* %i, align 4
+  br label %cond
+
+after:                                            ; preds = %cond
+  call void @writeString(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @"\0A", i32 0, i32 0))
+  ret void
+}

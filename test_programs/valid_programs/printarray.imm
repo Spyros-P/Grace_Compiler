@@ -1,0 +1,72 @@
+; ModuleID = 'grace program'
+source_filename = "grace program"
+
+@"]\0A" = private constant [3 x i8] c"]\0A\00", align 1
+@arr = private global [5 x i32] zeroinitializer
+
+define i32 @main() {
+entry:
+  store i32 15, i32* getelementptr inbounds ([5 x i32], [5 x i32]* @arr, i32 0, i32 0), align 4
+  store i32 24, i32* getelementptr inbounds ([5 x i32], [5 x i32]* @arr, i32 0, i32 1), align 4
+  store i32 33, i32* getelementptr inbounds ([5 x i32], [5 x i32]* @arr, i32 0, i32 2), align 4
+  store i32 42, i32* getelementptr inbounds ([5 x i32], [5 x i32]* @arr, i32 0, i32 3), align 4
+  store i32 51, i32* getelementptr inbounds ([5 x i32], [5 x i32]* @arr, i32 0, i32 4), align 4
+  call void @"printArray_$1"(i32* getelementptr inbounds ([5 x i32], [5 x i32]* @arr, i32 0, i32 0), i32 5)
+  ret i32 0
+
+after_ret:                                        ; No predecessors!
+  ret i32 0
+}
+
+declare void @writeString(i8*)
+
+declare void @writeChar(i8)
+
+declare void @writeInteger(i32)
+
+define void @"printArray_$1"(i32* %0, i32 %1) {
+entry:
+  %counter = alloca i32, align 4
+  %array = alloca i32*, align 8
+  store i32* %0, i32** %array, align 8
+  %size = alloca i32, align 4
+  store i32 %1, i32* %size, align 4
+  store i32 0, i32* %counter, align 4
+  call void @writeChar(i8 91)
+  br label %cond
+
+cond:                                             ; preds = %after6, %entry
+  %lval_tmp = load i32, i32* %counter, align 4
+  %lval_tmp1 = load i32, i32* %size, align 4
+  %lesstmp = icmp slt i32 %lval_tmp, %lval_tmp1
+  br i1 %lesstmp, label %body, label %after
+
+body:                                             ; preds = %cond
+  %lval_tmp2 = load i32, i32* %counter, align 4
+  %lval_tmp3 = load i32*, i32** %array, align 8
+  %pointer = getelementptr i32, i32* %lval_tmp3, i32 %lval_tmp2
+  %lval_tmp4 = load i32, i32* %pointer, align 4
+  call void @writeInteger(i32 %lval_tmp4)
+  br label %cond5
+
+after:                                            ; preds = %cond
+  call void @writeString(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @"]\0A", i32 0, i32 0))
+  ret void
+
+cond5:                                            ; preds = %body
+  %lval_tmp7 = load i32, i32* %counter, align 4
+  %lval_tmp8 = load i32, i32* %size, align 4
+  %subtmp = sub i32 %lval_tmp8, 1
+  %lesstmp9 = icmp slt i32 %lval_tmp7, %subtmp
+  br i1 %lesstmp9, label %then, label %after6
+
+then:                                             ; preds = %cond5
+  call void @writeChar(i8 44)
+  br label %after6
+
+after6:                                           ; preds = %then, %cond5
+  %lval_tmp10 = load i32, i32* %counter, align 4
+  %addtmp = add i32 %lval_tmp10, 1
+  store i32 %addtmp, i32* %counter, align 4
+  br label %cond
+}
