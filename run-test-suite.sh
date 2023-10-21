@@ -67,3 +67,55 @@ do
     fi
 done
 
+echo "==========================================================================="
+echo "Test suite complete."
+echo "==========================================================================="
+echo "Do you want to cleanup the output files of the test suite? (y/n)"
+read cleanup
+if [ $cleanup == "y" ]
+then
+    echo "remove logs? (y/n)"
+    read removelogs
+    if [ $removelogs == "y" ]
+    then
+        rm $errorlogbad
+        rm $errorloggood
+    fi
+    echo "remove .asm files? (y/n)"
+    read removeasm
+    if [ $removeasm == "y" ]
+    then
+        if ls $baddir/*.asm 1> /dev/null 2>&1; then
+            rm $baddir/*.asm
+        fi
+        if ls $gooddir/*.asm 1> /dev/null 2>&1; then
+            rm $gooddir/*.asm
+        fi
+    fi
+    echo "remove .imm files? (y/n)"
+    read removeimm
+    if [ $removeimm == "y" ]
+    then
+        if ls $baddir/*.imm 1> /dev/null 2>&1; then
+            rm $baddir/*.imm
+        fi
+        if ls $gooddir/*.imm 1> /dev/null 2>&1; then
+            rm $gooddir/*.imm
+        fi
+    fi
+    echo "remove executable .out files? (y/n)"
+    read removeout
+    if [ $removeout == "y" ]
+    then
+        if ls $baddir/*.out 1> /dev/null 2>&1; then
+            rm $baddir/*.out
+        fi
+        if ls $gooddir/*.out 1> /dev/null 2>&1; then
+            rm $gooddir/*.out
+        fi
+    fi
+    echo "Cleanup complete."
+else
+    echo "Cleanup skipped."
+fi
+
