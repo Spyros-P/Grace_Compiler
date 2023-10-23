@@ -74,8 +74,8 @@ let rec equal_lists cmp l1 l2 =
 
 let equal_types t1 t2 =
   match t1, t2 with
-  | EInteger(l1)  , EInteger(l2)    ->  equal_lists (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
-  | ECharacter(l1), ECharacter(l2)  ->  equal_lists (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
+  | EInteger(l1)  , EInteger(l2)    ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
+  | ECharacter(l1), ECharacter(l2)  ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
   | EString , EString               ->  true
   | ENothing, ENothing              ->  true
   | _ , _                           ->  false
@@ -116,7 +116,7 @@ let rec get_lval_type (x:lvalue) =
   | EAssArrEl(lval,e,pos) ->  let
                                 t=(sem_expr e)
                               in
-                                if equal_types t (EInteger([]))
+                                if equal_types t (EInteger([])) (*expression inside array brackets must have integer type*)
                                 then
                                   let
                                     tp=get_lval_type lval
@@ -124,7 +124,7 @@ let rec get_lval_type (x:lvalue) =
                                     (match tp with
                                     | EInteger(hd::tl)   -> EInteger(tl)
                                     | ECharacter(hd::tl) -> ECharacter(tl)
-                                    | _ -> (error "Array dimensions have been exeeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 1))
+                                    | _ -> (error "Array dimensions have been exceeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 1))
                                 else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 1)
   | EAssId(str,_)         ->  match lookup str with
                               | None -> error "Variable \"%s\" has not been declared\n" str; exit 1
@@ -220,9 +220,12 @@ let rec sem_stmt (s:stmt) =
                                                   let
                                                     t1=(get_lval_type lval) and t2=sem_expr e
                                                   in
-                                                    if equal_types t1 t2
-                                                    then ()
-                                                    else (error "Type missmatching in assignment:     %s <- %s\n" (types_to_str t1) (types_to_str t2); print_file_lines filename pos.line_start pos.line_end; exit 1)))
+                                                    match t1 with
+                                                    | EInteger(hd::tl) -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
+                                                    | ECharacter(hd::tl) -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
+                                                    | _ -> if equal_types t1 t2
+                                                            then ()
+                                                            else (error "Cannot assign type of \"%s\" to type of \"%s\"\n" (types_to_str t2) (types_to_str t1); print_file_lines filename pos.line_start pos.line_end; exit 1)))
   | EIf(c,stm,_)            ->  sem_cond c; sem_stmt stm
   | EIfElse(c,stm1,stm2,_)  ->  sem_cond c; sem_stmt stm1; sem_stmt stm2
   | EWhile(c,stm,_)         ->  sem_cond c; sem_stmt stm
