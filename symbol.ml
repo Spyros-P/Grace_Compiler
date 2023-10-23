@@ -49,16 +49,16 @@ let lookup_head id =
 let lookup id =
   let rec walk id st n =
     match st with
-    | [] -> None
+    | [] -> raise Not_found
     | cs :: []     -> (try
                         Some (Hashtbl.find cs id, -1)
-                      with Not_found -> None)
+                      with Not_found -> raise Not_found)
     | cs :: scopes -> (try
                         Some (Hashtbl.find cs id, n)
                       with Not_found -> walk id scopes (n+1))
   in 
     try walk id !symbol_table 0
-    with Not_found -> Some(Hashtbl.find build_in_table id, -1)
+    with Not_found -> try Some(Hashtbl.find build_in_table id, -1) with Not_found -> None
 
 
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)
