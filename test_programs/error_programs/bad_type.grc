@@ -1,0 +1,5 @@
+fun main(): nothing
+    var bruh: int[2];
+{
+    bruh <- "hello";
+}
