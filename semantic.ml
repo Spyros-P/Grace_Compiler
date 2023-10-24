@@ -15,12 +15,14 @@ let print_functions () =
   List.iter (fun (x:func_decl) -> printf "%s\n" x.id) !curr_fun;
   printf "\n"
 
+
 let get_curr_fun () =
   try
     List.hd !curr_fun
   with
     Failure _ -> failwith "get_curr_fun"
 
+(* TODO: This is garbage, just store the main function ...*)
 let get_main_fun () =
   try 
     List.hd (List.rev !curr_fun)
@@ -57,15 +59,17 @@ let symbol_add_arg (arg:func_args) =
                             printf "\nArgument definition:\n";
                             print_file_lines filename arg.pos.line_start arg.pos.line_end;
                             exit 1
-  | Some(Evar(x,_,_))   ->  error "Two function arguments have the same name \"%s\", in function \"%s\"\n" x.id (List.hd !curr_fun).id;
-                            print_file_lines filename (List.hd !curr_fun).pos.line_start (List.hd !curr_fun).pos.line_end;
-                            exit 1
+  | Some(Evar(x,_,_)) ->  let curr_func = get_curr_fun()
+                          in
+                              error "Two function arguments have the same name \"%s\", in function \"%s\"\n" x.id curr_func.id;
+                              print_file_lines filename curr_func.pos.line_start curr_func.pos.line_end;
+                              exit 1
   | _ -> failwith "symbol_add_arg");
   insert arg.id (Evar({id=arg.id;atype=arg.atype;to_ac_rec=arg.to_ac_rec;pos=arg.pos}, ref false, ref false))
 
 
 
-
+(* TODO: Agree on deleting this function *)
 let rec equal_lists cmp l1 l2 =
   match (l1, l2) with
   | ([], []) -> true
@@ -80,7 +84,27 @@ let equal_types t1 t2 =
   | ENothing, ENothing              ->  true
   | _ , _                           ->  false
 
+let check_function_return_type (func:func_decl) t =
+    if equal_types func.ret t
+    then ()
+    else (error "Function \"%s\" returns type of \"%s\" not type of \"%s\"\n" func.id (types_to_str func.ret) (types_to_str t); print_file_lines filename func.pos.line_start func.pos.line_end; exit 1)
+  
 
+let check_eq_neq_op t1 t2 com pos =
+    if (equal_types t1 t2 && (equal_types t1 (EInteger([])) || equal_types t1 (ECharacter([]))))
+    then ()
+    else (error ("Comparison operator \"%s\" should be used between integers or between characters\n") (comp_to_str com);
+          printf "\t%s %s %s\n" (types_to_str t1) (comp_to_str com) (types_to_str t2);
+          print_file_lines filename pos.line_start pos.line_end;
+          exit 1)
+
+let check_comp_ops t1 t2 com pos =
+    if (equal_types t1 (EInteger([])) && equal_types t2 (EInteger([])))
+    then ()
+    else (error "Comparison operator \"%s\" should be used between integers\n" (comp_to_str com);
+          printf "\t%s %s %s\n" (types_to_str t1) (comp_to_str com) (types_to_str t2);
+          print_file_lines filename pos.line_start pos.line_end;
+          exit 1)
 
 let check_decl_def (decl:func_decl) (def:func) =
   let rec equal_fun_args (arg1:func_args list) (arg2:func_args list) =
@@ -129,7 +153,7 @@ let rec get_lval_type (x:lvalue) =
   | EAssId(str,_)         ->  match lookup str with
                               | None -> error "Variable \"%s\" has not been declared\n" str; exit 1
                               | Some(Evar(v,b,_),i) ->  b := true; (* used *)
-                                                        let curr_fun = List.hd !curr_fun in
+                                                        let curr_fun = get_curr_fun() in
                                                         if (i>0) then (v.to_ac_rec := true; ignore (update_depend !(curr_fun.depend) i)); v.atype
                               | _ -> failwith "get_lval_type"
 and sem_expr (e:expr) =
@@ -144,12 +168,12 @@ and sem_expr (e:expr) =
                                             | Some(Efundecl(decl, b),i) -> b := true; (* used *) decl,i
                                             | _ -> failwith "sem_expr")
                                     in
-                                      (let curr_fn = List.hd !curr_fun in
+                                      (let curr_fn = get_curr_fun() in
                                       if (i = -1 && id = (get_main_fun ()).id) then
                                         (error "Main Function \"%s\" is not callable.\n" (get_main_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                       else
                                         if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
-                                        if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
+                                        if (List.equal equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
                                         then fn.ret
                                         else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
                                               print_file_lines filename fn.pos.line_start fn.pos.line_end;
@@ -176,10 +200,6 @@ and sem_expr (e:expr) =
                                         print_file_lines filename pos.line_start pos.line_end;
                                         exit 1)
 
-
-
-
-
 let rec lval_is_string (l:lvalue) =
   match l with
   | EAssString(str,_)   ->  (true,str)
@@ -205,12 +225,12 @@ let rec sem_stmt (s:stmt) =
                                                       print_file_lines filename pos.line_start pos.line_end;
                                                     exit 1
                                     in
-                                      let curr_fn = List.hd !curr_fun in
+                                      let curr_fn = get_curr_fun() in
                                       if (i = -1 && x = (get_main_fun()).id)
                                         then (error "Main Function \"%s\" is not callable.\n" (get_main_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                       else 
                                       if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
-                                      if (equal_lists equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
+                                      if (List.equal equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
                                       then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
                                       else (error "Function argument types missmatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                 end
@@ -221,28 +241,16 @@ let rec sem_stmt (s:stmt) =
                                                     t1=(get_lval_type lval) and t2=sem_expr e
                                                   in
                                                     match t1 with
-                                                    | EInteger(hd::tl) -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
+                                                    | EInteger(hd::tl)   -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
                                                     | ECharacter(hd::tl) -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
-                                                    | _ -> if equal_types t1 t2
+                                                    | _ ->  if equal_types t1 t2
                                                             then ()
                                                             else (error "Cannot assign type of \"%s\" to type of \"%s\"\n" (types_to_str t2) (types_to_str t1); print_file_lines filename pos.line_start pos.line_end; exit 1)))
   | EIf(c,stm,_)            ->  sem_cond c; sem_stmt stm
   | EIfElse(c,stm1,stm2,_)  ->  sem_cond c; sem_stmt stm1; sem_stmt stm2
   | EWhile(c,stm,_)         ->  sem_cond c; sem_stmt stm
-  | ERet(_)                 ->  let
-                                  func = (List.hd !curr_fun)
-                                in
-                                  if equal_types func.ret ENothing
-                                  then ()
-                                  else (error "Function \"%s\" returns type of \"%s\" not type of \"%s\"\n" func.id (types_to_str func.ret) (types_to_str ENothing); print_file_lines filename func.pos.line_start func.pos.line_end; exit 1)
-  | ERetVal(e,_)            ->  let
-                                  t=(sem_expr e) and func = (List.hd !curr_fun)
-                                in
-                                  if equal_types func.ret t
-                                  then ()
-                                  else (error "Function \"%s\" returns type of \"%s\" not type of \"%s\"\n" func.id (types_to_str func.ret) (types_to_str t); print_file_lines filename func.pos.line_start func.pos.line_end; exit 1)
-
-
+  | ERet(_)                 ->  check_function_return_type (get_curr_fun()) ENothing
+  | ERetVal(e,_)            ->  check_function_return_type (get_curr_fun()) (sem_expr e)
 and sem_cond (c:cond) =
   match c with
   | ELbop(b,c1,c2,_)      ->  sem_cond c1; sem_cond c2
@@ -250,12 +258,10 @@ and sem_cond (c:cond) =
   | EComp(com,e1,e2,pos)  ->  let
                                 t1=sem_expr e1 and t2=sem_expr e2
                               in
-                                if (equal_types t1 (EInteger([])) && equal_types t2 (EInteger([])))
-                                then ()
-                                else (error "Comparison operator \"%s\" should be used between integers\n" (comp_to_str com);
-                                      printf "\t%s %s %s\n" (types_to_str t1) (comp_to_str com) (types_to_str t2);
-                                      print_file_lines filename pos.line_start pos.line_end;
-                                      exit 1)
+                                match com with
+                                | CompEq   -> check_eq_neq_op t1 t2 com pos
+                                | CompNeq  -> check_eq_neq_op t1 t2 com pos
+                                | _        -> check_comp_ops t1 t2 com pos
 
 
 and sem_block (b:block) =
@@ -358,7 +364,7 @@ let rec symbol_add_def (decl:local_def) =
 
 
 and sem_fun (f:func) =
-  f.father_func := Some(List.hd !curr_fun);
+  f.father_func := Some(get_curr_fun());
   let fun_decl = fun_def2decl f in
   curr_fun := fun_decl::!curr_fun;
   open_scope ();
