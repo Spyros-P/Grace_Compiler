@@ -126,8 +126,8 @@ let rec get_lval_type (x:lvalue) =
                                     | ECharacter(hd::tl) -> ECharacter(tl)
                                     | _ -> (error "Array dimensions have been exceeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 1))
                                 else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 1)
-  | EAssId(str,_)         ->  match lookup str with
-                              | None -> error "Variable \"%s\" has not been declared\n" str; exit 1
+  | EAssId(str,pos)       ->  match lookup str with
+                              | None -> (error "Variable \"%s\" has not been declared\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1)
                               | Some(Evar(v,b,_),i) ->  b := true; (* used *)
                                                         let curr_fun = List.hd !curr_fun in
                                                         if (i>0) then (v.to_ac_rec := true; ignore (update_depend !(curr_fun.depend) i)); v.atype
@@ -250,9 +250,9 @@ and sem_cond (c:cond) =
   | EComp(com,e1,e2,pos)  ->  let
                                 t1=sem_expr e1 and t2=sem_expr e2
                               in
-                                if (equal_types t1 (EInteger([])) && equal_types t2 (EInteger([])))
+                                if (equal_types t1 (EInteger([])) && equal_types t2 (EInteger([]))) || (equal_types t1 (ECharacter([])) && equal_types t2 (ECharacter([])))
                                 then ()
-                                else (error "Comparison operator \"%s\" should be used between integers\n" (comp_to_str com);
+                                else (error "Comparison operator \"%s\" should be used between integers or characters\n" (comp_to_str com);
                                       printf "\t%s %s %s\n" (types_to_str t1) (comp_to_str com) (types_to_str t2);
                                       print_file_lines filename pos.line_start pos.line_end;
                                       exit 1)
