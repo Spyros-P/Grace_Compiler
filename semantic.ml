@@ -67,15 +67,6 @@ let symbol_add_arg (arg:func_args) =
   | _ -> failwith "symbol_add_arg");
   insert arg.id (Evar({id=arg.id;atype=arg.atype;to_ac_rec=arg.to_ac_rec;pos=arg.pos}, ref false, ref false))
 
-
-
-(* TODO: Agree on deleting this function *)
-let rec equal_lists cmp l1 l2 =
-  match (l1, l2) with
-  | ([], []) -> true
-  | (x::xs, y::ys) when cmp x y -> equal_lists cmp xs ys
-  | _ -> false
-
 let equal_types t1 t2 =
   match t1, t2 with
   | EInteger(l1)  , EInteger(l2)    ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
@@ -166,7 +157,14 @@ and sem_expr (e:expr) =
                                       fn,i = (match lookup id with
                                             | Some(Efuncdef(decl, b),i) -> b := true; (* used *) decl,i
                                             | Some(Efundecl(decl, b),i) -> b := true; (* used *) decl,i
-                                            | _ -> failwith "sem_expr")
+                                            | Some(Evar(var,_,_),_)    -> error "\"%s\" is defined as a variable but used as a function\n" var.id;
+                                                                        printf "Variable definition:\n";
+                                                                        print_file_lines filename var.pos.line_start var.pos.line_end;
+                                                                        printf "\nUsed as:\n";
+                                                                        print_file_lines filename pos.line_start pos.line_end;
+                                                                        exit 1
+                                            | _ -> failwith "sem_expr"
+                                            )
                                     in
                                       (let curr_fn = get_curr_fun() in
                                       if (i = -1 && id = (get_main_fun ()).id) then
@@ -175,7 +173,7 @@ and sem_expr (e:expr) =
                                         if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                         if (List.equal equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
                                         then fn.ret
-                                        else (error "Function argument types missmatch in function \"%s\"\n" fn.id;
+                                        else (error "Function argument type mismatch in function \"%s\"\n" fn.id;
                                               print_file_lines filename fn.pos.line_start fn.pos.line_end;
                                               printf "\nUsed in:\n";
                                               print_file_lines filename pos.line_start pos.line_end;
@@ -215,7 +213,7 @@ let rec sem_stmt (s:stmt) =
                                       fn,i = match lookup x with
                                             | Some(Efuncdef(decl,b),i) -> b := true; (* used *) decl,i
                                             | Some(Efundecl(decl,b),i) -> b := true; (* used *) decl,i
-                                            | Some(Evar(var,_,_),_)    -> error "\"%s\" has defined as a variable but used as a function\n" x;
+                                            | Some(Evar(var,_,_),_)    -> error "\"%s\" is defined as a variable but used as a function\n" x;
                                                                         printf "Variable definition:\n";
                                                                         print_file_lines filename var.pos.line_start var.pos.line_end;
                                                                         printf "\nUsed as:\n";
@@ -232,7 +230,7 @@ let rec sem_stmt (s:stmt) =
                                       if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                       if (List.equal equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
                                       then (match fn.ret with ENothing -> () | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
-                                      else (error "Function argument types missmatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      else (error "Function argument type mismatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                 end
   | EAss(lval,e,pos)        ->  (match lval_is_string lval with
                                 | (res,str) ->  if res then (error "Assignment of read-only location '\"%s\"'\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1)
@@ -378,21 +376,6 @@ and sem_fun (f:func) =
   curr_fun := List.tl !curr_fun
 
 
-(* Helper function for DEBUGGING perposes ONLY *)
-let rec print_depend f depth =
-  let string_depend depend =
-    match depend with
-    | None          ->  "None"
-    | Some(min,max) ->  "some(" ^ string_of_int min ^ "," ^ string_of_int max ^ ")"
-  in let dig depth loc_def =
-    match loc_def with
-    | EFuncDef(x) ->  print_depend x (depth+1)
-    | _           ->  ()
-  in (Printf.printf "%s%s : %s , Father : %s , Grandfather : %s\n" (String.make (depth*2) ' ') f.id (string_depend !(f.depend))
-  (match !(f.father_func) with Some(f) -> f.id | None -> "NaN") (match !(f.father_func) with Some(f) -> (match !(!(f.father_func)) with Some(f) -> f.id | None -> "NaN") | None -> "NaN");
-  List.iter (dig depth) (f.local_defs))
-
-
 let fix_depends () =
   let rec fix_caller_callee (lst:(func_decl*func_decl*int) list) =
     match lst with
@@ -435,4 +418,4 @@ let sem_main (f:func) =
                       fix_depends ();
                       fill_rest_fields f(*
                       print_depend f 0*)
-  | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and should return nothing\n" f.id; exit 1)
+  | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and must return nothing\n" f.id; exit 1)

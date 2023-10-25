@@ -94,7 +94,7 @@ and func = {
 
 (* ------------------------------------------------- *)
 
-let build_in_defs =
+let built_in_defs =
   { id = "writeInteger"; args = { id="i";   atype=EInteger([]);     ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   { id = "writeChar";    args = { id="c";   atype=ECharacter([]);   ref=false; to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::
   { id = "writeString";  args = { id="str"; atype=ECharacter([-1]); ref=true;  to_ac_rec=ref false; pos=pos_zero }::[]; ret = ENothing; depend=ref (ref None); father_func=ref (ref None); pos=pos_zero }::

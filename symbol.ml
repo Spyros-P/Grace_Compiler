@@ -18,10 +18,10 @@ type entry =
 (* ------------------------------------------------- *)
 
 
-let build_in_table =
+let built_in_table =
   let table =
     Hashtbl.create 10
-  in List.iter (fun (def:func_decl) -> Hashtbl.add table def.id (Efuncdef(def, ref false)) ) build_in_defs; table
+  in List.iter (fun (def:func_decl) -> Hashtbl.add table def.id (Efuncdef(def, ref false)) ) built_in_defs; table
 
 
 let symbol_table : (string, entry) Hashtbl.t list ref = ref []
@@ -40,7 +40,7 @@ let current_scope () =
   List.hd !symbol_table
 
 let lookup_head id =
-  try Some(Hashtbl.find build_in_table id)
+  try Some(Hashtbl.find built_in_table id)
   with Not_found ->
     try
       Some (Hashtbl.find (current_scope ()) id)
@@ -58,7 +58,7 @@ let lookup id =
                       with Not_found -> walk id scopes (n+1))
   in 
     try walk id !symbol_table 0
-    with Not_found -> try Some(Hashtbl.find build_in_table id, -1) with Not_found -> None
+    with Not_found -> try Some(Hashtbl.find built_in_table id, -1) with Not_found -> None
 
 
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)

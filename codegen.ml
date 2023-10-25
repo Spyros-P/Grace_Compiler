@@ -30,7 +30,7 @@ type llvm_info = {
   c32             :   int -> Llvm.llvalue;
   c64             :   int -> Llvm.llvalue;
   funcs           :   Llvm.llvalue list ref;
-  build_in_table  :   (string, entry) Hashtbl.t;
+  built_in_table  :   (string, entry) Hashtbl.t;
   count_funs      :   int ref;
 }
 
@@ -92,7 +92,7 @@ let lookup info id =
                         Some (Hashtbl.find cs id, n)
                        with Not_found -> walk id scopes (n+1))
   in 
-    try Some(Hashtbl.find info.build_in_table id, -1)
+    try Some(Hashtbl.find info.built_in_table id, -1)
     with Not_found -> walk id !symbol_table 0
 
 
@@ -183,7 +183,7 @@ let id_get_llvalue info id =
     | Some(_,_) , _ ->  walk father_decl ac_link (depth-1)
     | _ , _ -> failwith "id_get_llvalue"
   in let func_decl = List.hd !fun_decls
-  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0 (* check code line for potention hazard*)
+  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0 (* check code line for potential hazard*)
   in match lookup info id with
   | Some(Efun(_,llval),i)         ->  (llval,Fun)
   | Some(Evar(_,llval,vtype),-1)  ->  (llval (info.c32 0),vtype)
@@ -550,15 +550,15 @@ match def with
                             Llvm.set_initializer (Llvm.const_null ltype) llval;
                             insert var.id (Evar(var,(fun _ -> llval),get_type var.atype false))
 
-let codegen_build_in_decl info (entr:Symbol.entry) =
+let codegen_built_in_decl info (entr:Symbol.entry) =
   match entr with
   | Efuncdef(decl,used) ->  if !used then
                               let ffunc_type = Llvm.function_type (codegen_type info decl.ret false) (codegen_fun_array_args info decl.args decl) in (* fix array *)
                               let ffunc = Llvm.declare_function decl.id ffunc_type info.the_module in
-                              Hashtbl.add info.build_in_table decl.id (Efun(decl,ffunc));
+                              Hashtbl.add info.built_in_table decl.id (Efun(decl,ffunc));
                               Hashtbl.add fun_refs ffunc (List.map (fun x -> get_type x.atype x.ref) decl.args)
                             else ()
-  | _ -> failwith "codegen_build_in_decl"
+  | _ -> failwith "codegen_built_in_decl"
 
 
 (* define main - compile and dump function *)
@@ -629,7 +629,7 @@ let llvm_compile_and_dump main_func optimizations_enable temp_file =
   let c32 = Llvm.const_int i32 in
   let c64 = Llvm.const_int i64 in
   (* Create symbol table for build in functions *)
-  let build_in_table = Hashtbl.create 10 in
+  let built_in_table = Hashtbl.create 10 in
   open_scope ();
   (* Define and start and main function *)
   let main_type = Llvm.function_type i32 [| |] in
@@ -647,13 +647,13 @@ let llvm_compile_and_dump main_func optimizations_enable temp_file =
     c32              = c32;
     c64              = c64;
     funcs            = ref [main];
-    build_in_table   = build_in_table;
+    built_in_table   = built_in_table;
     count_funs       = ref 1;
   } in
   fun_decls := [fun_def2decl main_func];
   let values_from_hashtable htbl =
     Hashtbl.fold (fun _key value acc -> value :: acc) htbl [] in
-  List.iter (codegen_build_in_decl info) (values_from_hashtable Symbol.build_in_table);
+  List.iter (codegen_built_in_decl info) (values_from_hashtable Symbol.built_in_table);
   struct_types       := [None];
   activation_records := [None];
   List.iter (main_codegen_localdef info) main_func.local_defs;
