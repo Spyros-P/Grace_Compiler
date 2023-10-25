@@ -18,7 +18,7 @@ let prev_start_line_char = ref 1
 
 let curr_start_line_char = ref 1
 
-let start_line_char = ref 1
+let start_line_char = ref 0
 
 let prev_char = ref 1
 
@@ -30,7 +30,9 @@ let filename =
   | _ :: filename :: _ -> filename
   | _ -> error "Please provide a filename as an argument\n"; exit 1
 
-let channel = open_in filename
+let channel =
+  try open_in filename
+  with Sys_error(str) -> error "%s\n" str; exit 1
 
 let lexbuf = Lexing.from_channel channel
 
