@@ -29,4 +29,9 @@ let main =
     close_in channel;
     let optimizations_enable = Array.exists (fun arg -> arg = "-O") Sys.argv in
     if !Error.errors_detected=true then exit 1
-    else Codegen.llvm_compile_and_dump main_func optimizations_enable
+    else
+      let temp_file =
+        match Array.to_list Sys.argv with
+        | _ :: _ :: filename :: _ -> filename
+        | _ -> error "Please provide a filename as an argument\n"; exit 1
+      in Codegen.llvm_compile_and_dump main_func optimizations_enable temp_file

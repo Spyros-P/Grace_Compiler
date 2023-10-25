@@ -562,7 +562,7 @@ let codegen_build_in_decl info (entr:Symbol.entry) =
 
 
 (* define main - compile and dump function *)
-let llvm_compile_and_dump main_func optimizations_enable =
+let llvm_compile_and_dump main_func optimizations_enable temp_file =
   (* Initialize *)
   Llvm_all_backends.initialize ();
   let context = Llvm.global_context () in
@@ -666,4 +666,4 @@ let llvm_compile_and_dump main_func optimizations_enable =
   (* Optimize *)
   ignore (Llvm.PassManager.run_module the_module pm);
   (* Print out the IR *)
-  Llvm.print_module "a.ll" the_module
+  Llvm.print_module temp_file the_module
