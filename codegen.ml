@@ -230,7 +230,14 @@ let rec codegen_lval_for_array info lval index_expr =
   | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                 in let index = codegen_expr info index_expr
                                 in Llvm.build_gep llval [| info.c32 0;  index |] "pointer" info.builder
-  | _                       ->  failwith "codegen_lval_for_array"
+  | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
+                                let the_str = Llvm.declare_global str_type str info.the_module in
+                                Llvm.set_linkage Llvm.Linkage.Private the_str;
+                                Llvm.set_global_constant true the_str;
+                                Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
+                                Llvm.set_alignment 1 the_str;
+                                let index = codegen_expr info index_expr in
+                                Llvm.build_gep the_str [| info.c32 0; index |] "" info.builder
 
 
 and codegen_lval_load info lval =
@@ -276,7 +283,7 @@ and codegen_call_func info id params =
                                   else if target_type=Pointer then llval
                                   else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "pointer" info.builder
     | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
-                                  let the_str = Llvm.declare_global str_type str info.the_module in
+                                  let the_str = Llvm.declare_global str_type (str ^ "_$str") info.the_module in
                                   Llvm.set_linkage Llvm.Linkage.Private the_str;
                                   Llvm.set_global_constant true the_str;
                                   Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
