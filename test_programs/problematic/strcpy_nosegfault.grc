@@ -1,0 +1,5 @@
+fun main(): nothing
+    var test: char[5];
+{
+    strcpy(test, "test");
+}

@@ -246,7 +246,7 @@ and codegen_lval_load info lval =
                                 let llval = Llvm.build_load llval "lval_tmp" info.builder in
                                 if vtype=Pointer then Llvm.build_load llval "lval_tmp" info.builder else llval
   | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
-                                let the_str = Llvm.declare_global str_type str info.the_module in
+                                let the_str = Llvm.declare_global str_type (str ^ "_string") info.the_module in
                                 Llvm.set_linkage Llvm.Linkage.Private the_str;
                                 Llvm.set_global_constant true the_str;
                                 Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;

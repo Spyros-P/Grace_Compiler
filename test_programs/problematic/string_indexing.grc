@@ -1,0 +1,4 @@
+fun main(): nothing
+{
+    writeChar("test"[0]);
+}
