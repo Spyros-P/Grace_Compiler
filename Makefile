@@ -1,4 +1,4 @@
-.PHONY: default all clean MINIMAL FOR_DEVELOPERS
+.PHONY: default all clean distclean MINIMAL FOR_DEVELOPERS
 
 LLVMCONFIG=llvm-config
 LLVMLDFLAGS=-L`$(LLVMCONFIG) --libdir`
@@ -14,10 +14,14 @@ main.native: MINIMAL
 MINIMAL:
 	@$(RM) *.cmi *.mli
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) main.native
+	@$(RM) main.native
+	@cp _build/main.native .
 
 FOR_DEVELOPERS:
 	@$(RM) *.cmi *.mli
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) main.native
+	@$(RM) main.native
+	@cp _build/main.native .
 	@cp _build/*.cmi _build/*.mli .
 	@cp ~/.opam/default/lib/llvm/llvm.cmi .
 	@cp ~/.opam/default/lib/llvm/llvm.mli .
@@ -37,6 +41,9 @@ lib/libmylib.a: lib/mylib.c lib/mylib.h
 	ar rcs lib/libmylib.a lib/mylib.o
 
 clean:
-	$(OCAMLBUILD) -clean
+	$(RM) -r _build
 	$(RM) *.cmi *.mli
 	$(RM) lib/libmylib.a lib/mylib.o
+
+distclean: clean
+	$(RM) main.native
