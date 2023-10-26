@@ -69,8 +69,8 @@ let symbol_add_arg (arg:func_args) =
 
 let equal_types t1 t2 =
   match t1, t2 with
-  | EInteger(l1)  , EInteger(l2)    ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
-  | ECharacter(l1), ECharacter(l2)  ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2 (* should fix*)
+  | EInteger(l1)  , EInteger(l2)    ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2
+  | ECharacter(l1), ECharacter(l2)  ->  List.equal (fun x y -> x = y || x = -1 || y = -1) l1 l2
   | EString , EString               ->  true
   | ENothing, ENothing              ->  true
   | _ , _                           ->  false
@@ -416,6 +416,5 @@ let sem_main (f:func) =
   | [], ENothing  ->  curr_fun := [fun_def2decl f];
                       sem_fun f;
                       fix_depends ();
-                      fill_rest_fields f(*
-                      print_depend f 0*)
+                      fill_rest_fields f
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and must return nothing\n" f.id; exit 1)
