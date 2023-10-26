@@ -49,12 +49,10 @@
 %nonassoc THEN
 %nonassoc ELSE
 
+%nonassoc ";"          (* used for shift/reduce conflicts *)
+%nonassoc ID           (* used for shift/reduce conflict : return involed *)
+%nonassoc STRING       (* used for shift/reduce conflict : return involed *)
 
-%right FUN          (* used for shift/reduce conflicts *)
-%right VAR          (* used for shift/reduce conflicts *)
-%right STRING       (* used for shift/reduce conflicts *)
-%right ID           (* used for shift/reduce conflicts *)
-%right ";"          (* used for shift/reduce conflicts *)
 
 %start program
 %type <func> program
@@ -86,9 +84,8 @@
 
 %%
 
-/*                                                                            ALIGN             */
-/*                                                                              |               */
-program:/*                                                                      V               */
+
+program:
     | f=func_def EOF                                                            { f }
     | EOF                                                                       { error "No code found!\n"; exit 1 }
     ;
@@ -107,7 +104,6 @@ header:
     | FUN ln1=line id=ID "(" ")" ":" r=ret_type ln2=line                        { { id = id; args = []; ret = r; depend=ref (ref None); father_func=ref (ref None); pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0}} }
     ;
 
-/* >>> Help */
 fparams_def:
     | lst1=fpar_def lst2=semic_fpar_def_star                                    { List.append lst1 lst2 }
     ;
@@ -116,19 +112,16 @@ semic_fpar_def_star:
     | lst1=semic_fpar_def_star ";" lst2=fpar_def                                { List.append lst1 lst2 }
     | /* nothing */                                                             { [] }
     ;
-/* <<< Help */
 
 fpar_def:
     | REF ln1=line id=ID ids=comma_id_star ":" t=fpar_type ln2=line             { List.map (fun name -> {id = name; atype = t; ref = true;  to_ac_rec=ref false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
     | id=ID ln1=line ids=comma_id_star ":" t=fpar_type ln2=line                 { List.map (fun name -> {id = name; atype = t; ref = false; to_ac_rec=ref false; pos={line_start=ln1;line_end=ln2;char_start=0;char_end=0} }) (id::ids) }
     ;
 
-/* >>> Help */
 comma_id_star:
     | "," id=ID lst=comma_id_star                                               { id::lst }
     | /* nothing */                                                             { [] }
     ;
-/* <<< Help */
 
 data_type:
     | INT                                                                       { EInteger([]) }
@@ -139,12 +132,10 @@ ttype:
     | d=data_type lst=brack_integer_star                                        { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> (error "Internal error :(  {error code: ttype in parser}\n"; exit 1) }
     ;
 
-/* >>> Help */
 brack_integer_star:
     | "[" i=INTEGER "]" lst=brack_integer_star                                  { i::lst }
     | /* nothing */                                                             { [] }
     ;
-/* <<< Help */
 
 ret_type:
     | d=data_type                                                               { d }
@@ -163,7 +154,7 @@ local_def:
     ;
 
 func_decl:
-    | h=header sem=semicol                                                      { if sem=false then (error "Missing semicolon at line %d\n" !prev_line; print_file_lines filename !prev_line !prev_line; print_carat_with_spaces (!prev_char - !prev_start_line_char + !prev_line/10 + 5)); h }
+    | h=header ";"                                                              { h }
     ;
 
 var_def:
@@ -186,24 +177,20 @@ block:
     | "{" ln1=line list=stmt_star "}" ln2=line                                  { EListStmt(list,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
     ;
 
-/* >>> Help */
 stmt_star:
     | st=stmt list=stmt_star                                                    { st::list }
     | /* nothing */                                                             { [] }
     ;
-/* <<< Help */
 
 func_call:
     | id=ID ln1=line "(" arg=fun_args ")" ln2=line                              { EFuncCall(id,arg,{line_start=ln1;line_end=ln2;char_start=0;char_end=0}) }
     ;
 
-/* >>> Help */
 fun_args:
     | e=expr "," list=fun_args                                                  { e::list }
     | e=expr                                                                    { e::[] }
     | /* nothing */                                                             { [] }
     ;
-/* <<< Help */
 
 l_value:
     | id=ID ln=line                                                             { EAssId(id,{line_start=ln;line_end=ln;char_start=0;char_end=0}) }
@@ -238,7 +225,6 @@ cond:
     | e1=expr "<=" e2=expr                                                      { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompLsEq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
     | e1=expr ">=" e2=expr                                                      { let pos1=get_expr_pos e1 and pos2=get_expr_pos e2 in EComp(CompGrEq,e1,e2,{line_start=pos1.line_start;line_end=pos2.line_end;char_start=0;char_end=0}) }
     ;
-
 
 semicol:
     | /* nothing */ %prec PUNCT                                                 { false }
