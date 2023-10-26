@@ -1,11 +1,3 @@
-$$
-    This program prints the first 47 fibonacci numbers
-    (we start counting from zero)
-
-    The purpose of this program is to check the execution speed
-    of the executable, that your compile will provide :-)
-$$
-
 fun main() : nothing
 
     fun fibo(x : int) : int
@@ -18,7 +10,7 @@ fun main() : nothing
     var N,limit : int;
 
 {
-    limit <- 46;
+    limit <- 21;
     N <- 0;
     while (N<=limit)
     do {
@@ -30,22 +22,3 @@ fun main() : nothing
         N <- N+1;
     }
 }
-
-$$
-    Benchmarks:
-
-    -----------------------------------------------------------------
-    | Compiler/Interpreter |  Optimizations  | Execution Time (sec) |
-    -----------------------------------------------------------------
-    |        Grace         |        No       |        28.431        |
-    |        Grace         |       Yes       |        15.838        |
-    |         gcc          |        No       |        33.776        |
-    |         gcc          |       -O1       |        24.041        |
-    |         gcc          |       -02       |         8.660        |
-    |         gcc          |       -O3       |         8.889        |
-    |       Python3        |        No       |      1038.780        |
-    -----------------------------------------------------------------
-
-
-    Benchmarks obtained from Spyros' laptop
-$$

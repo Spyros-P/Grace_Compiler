@@ -1,5 +1,5 @@
 fun main () : nothing
-    var storage : int[421742];
+    var storage : int[16];
 
     fun mergeSort(ref arr : int[]; l : int; r : int) : nothing
         fun merge(ref arr : int[]; l : int; m : int; r : int) : nothing        
@@ -65,10 +65,10 @@ fun main () : nothing
     var x       : int[421742];
    
 { $ main
-    N <- 421742;
+    N <- 16;
     seed <- 65;
     i <- 0;
-    while i < N do {
+    while i < 16 do {
         seed <- (seed * 137 + 221 + i) mod 101;
         x[i] <- seed;
         i <- i+1;

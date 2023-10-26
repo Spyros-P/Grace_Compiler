@@ -60,37 +60,33 @@ fun main() : nothing
     }
 
     $ function to print array elements
-    fun printArray(ref array : int[]; size : int) : nothing
+    fun writeArray (ref msg : char[]; n : int; ref x : int[]) : nothing
         var i : int;
     {
-        i<- 0;
-        while (i < size) do {
-            writeInteger(array[i]);
-            writeString("  ");
+        writeString(msg);
+        i <- 0;
+        while i < n do {
+            if i > 0 then writeString(", ");
+            writeInteger(x[i]);
             i <- i+1;
         }
         writeString("\n");
     }
 
-    var data : int[421742000];
-    var i,N : int;
+    var x : int[16];
+    var seed,i,N : int;
 
-$ main function
-{
-    N <- 421742;
-
+{ $ main
+    N <- 16;
+    seed <- 65;
     i <- 0;
-    while (i < N) do {
-        data[i] <- ((3*i) mod 10 + i*(i+10)) mod 1000;
+    while i < 16 do {
+        seed <- (seed * 137 + 221 + i) mod 101;
+        x[i] <- seed;
         i <- i+1;
     }
-    
-    writeString("Unsorted Array\n");
-    $printArray(data, N);
-    
+    writeArray("Initial array: ", N, x);
     $ perform quicksort on data
-    quickSort(data, 0, N-1);
-    
-    writeString("Sorted array in ascending order: \n");
-    $printArray(data, N);
-}
+    quickSort(x, 0, N-1);
+    writeArray("Sorted  array: ", N, x);
+ } $ main
