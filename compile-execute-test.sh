@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export grc="./main.native"
-export folder="./test_programs/valid_programs/*.grc"
+export folder="./programs/*.grc"
 
 temp_file=$(mktemp)
 

@@ -13,12 +13,14 @@ main.native: MINIMAL
 
 MINIMAL:
 	@$(RM) *.cmi *.mli
+	@$(RM) main.native
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) main.native
 	@$(RM) main.native
 	@cp _build/main.native .
 
 FOR_DEVELOPERS:
 	@$(RM) *.cmi *.mli
+	@$(RM) main.native
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) main.native
 	@$(RM) main.native
 	@cp _build/main.native .
@@ -43,7 +45,8 @@ lib/libmylib.a: lib/mylib.c lib/mylib.h
 clean:
 	$(RM) -r _build
 	$(RM) *.cmi *.mli
-	$(RM) lib/libmylib.a lib/mylib.o
+	$(RM) lib/mylib.o
 
 distclean: clean
+	$(RM) lib/libmylib.a
 	$(RM) main.native
