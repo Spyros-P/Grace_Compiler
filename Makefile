@@ -33,7 +33,7 @@ FOR_DEVELOPERS:
 	@cp ~/.opam/default/lib/llvm/llvm_vectorize.mli .
 
 lib/libmylib.a: lib/mylib.c lib/mylib.h
-	gcc -c lib/mylib.c -o lib/mylib.o -O2 -Wno-builtin-declaration-mismatch
+	gcc -c lib/mylib.c -o lib/mylib.o -Wno-builtin-declaration-mismatch
 	ar rcs lib/libmylib.a lib/mylib.o
 
 clean:
