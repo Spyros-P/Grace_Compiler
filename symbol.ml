@@ -40,11 +40,12 @@ let current_scope () =
   List.hd !symbol_table
 
 let lookup_head id =
-  try Some(Hashtbl.find built_in_table id)
-  with Not_found ->
-    try
-      Some (Hashtbl.find (current_scope ()) id)
-    with Not_found -> None
+  try
+    Some (Hashtbl.find (current_scope ()) id)
+  with Not_found -> 
+    try Some(Hashtbl.find built_in_table id)
+  with Not_found -> None
+    
 
 let lookup id =
   let rec walk id st n =
