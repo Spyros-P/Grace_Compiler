@@ -49,9 +49,9 @@
 %nonassoc THEN
 %nonassoc ELSE
 
-%nonassoc ";"          (* used for shift/reduce conflicts *)
-%nonassoc ID           (* used for shift/reduce conflict : return involed *)
-%nonassoc STRING       (* used for shift/reduce conflict : return involed *)
+%right ";"          (* used for shift/reduce conflicts *)
+%right ID           (* used for shift/reduce conflict : return involed *)
+%right STRING       (* used for shift/reduce conflict : return involed *)
 
 
 %start program
