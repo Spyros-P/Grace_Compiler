@@ -5,9 +5,8 @@
 sudo apt install opam
 opam init
 opam install ocaml-lsp-server
-opam install llvm
-sudo apt install menhir
 sudo apt install llvm.14.0.6
+sudo apt install menhir
 sudo apt install clang
 eval $(opam env)
 ```
