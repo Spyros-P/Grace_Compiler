@@ -85,6 +85,11 @@ else
     # and the output is two files: .imm and .asm with the same name
     # as the source file.
 
+    if [[ $filename = "" ]] ; then
+        echo -e "${ERROR} Please provide a filename as an argument"
+        exit 1
+    fi
+
     mainname=$(basename $filename | awk -F. 'NF==1 || ($1 == "" && NF == 2) {print; next} {OFS="."; NF--; print $0}')
     pathname=$(dirname $filename)
 
