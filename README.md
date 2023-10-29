@@ -1,3 +1,5 @@
+![image](https://github.com/Spyros-P/Grace_Compiler/assets/56654089/d0048a61-b17a-432b-a293-2811d8591fc9)
+
 <sub>**Disclaimer**: Any instruction given below is tested and working on Ubuntu 22.04</sub>
 
 ### SETUP
