@@ -7,6 +7,7 @@ open Symbol
 
 (* ------------------------------------------------- *)
 
+let main_fun = ref (List.hd built_in_defs)
 
 let curr_fun : func_decl list ref = ref []
 
@@ -22,12 +23,6 @@ let get_curr_fun () =
   with
     Failure _ -> failwith "get_curr_fun"
 
-(* TODO: This is garbage, just store the main function ...*)
-let get_main_fun () =
-  try 
-    List.hd (List.rev !curr_fun)
-  with
-    Failure _ -> failwith "get_main_fun"
 
 (* (caller,callee,int) tuple *)
 let caller_callee_dependancies : (func_decl * func_decl * int) list ref = ref []
@@ -167,8 +162,8 @@ and sem_expr (e:expr) =
                                             )
                                     in
                                       (let curr_fn = get_curr_fun() in
-                                      if (i = -1 && id = (get_main_fun ()).id) then
-                                        (error "Main Function \"%s\" is not callable.\n" (get_main_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      if (i = -1 && id = (!main_fun).id) then
+                                        (error "Main Function \"%s\" is not callable.\n" (!main_fun).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                       else
                                         if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                         if (List.equal equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) elst))
@@ -224,8 +219,8 @@ let rec sem_stmt (s:stmt) =
                                                     exit 1
                                     in
                                       let curr_fn = get_curr_fun() in
-                                      if (i = -1 && x = (get_main_fun()).id)
-                                        then (error "Main Function \"%s\" is not callable.\n" (get_main_fun ()).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      if (i = -1 && x = (!main_fun).id)
+                                        then (error "Main Function \"%s\" is not callable.\n" (!main_fun).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
                                       else 
                                       if (i>(-1) && (curr_fn.id <> fn.id)) then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
                                       if (List.equal equal_types (List.map (fun (n:func_args) -> n.atype) fn.args) (List.map (fun n -> sem_expr n) y))
@@ -413,7 +408,9 @@ let rec fill_rest_fields f =
 
 let sem_main (f:func) =
   match f.args, f.ret with
-  | [], ENothing  ->  curr_fun := [fun_def2decl f];
+  | [], ENothing  ->  let main_func = fun_def2decl f in
+                      curr_fun := [main_func];
+                      main_fun := main_func;
                       sem_fun f;
                       fix_depends ();
                       fill_rest_fields f

@@ -7,6 +7,8 @@ LLVMPACKAGES=llvm,llvm.analysis,llvm.all_backends,llvm.scalar_opts,llvm.ipo,llvm
 OCAMLBUILD=ocamlbuild
 OCAMLBUILDFLAGS=-use-menhir -pkgs $(LLVMPACKAGES) -lflags -cclib,$(LLVMLDFLAGS)
 
+OPAM_GRACE_PATH=~/.opam/default
+
 default: main.native lib/libmylib.a
 
 main.native: MINIMAL
@@ -25,18 +27,18 @@ FOR_DEVELOPERS:
 	@$(RM) main.native
 	@cp _build/main.native .
 	@cp _build/*.cmi _build/*.mli .
-	@cp ~/.opam/default/lib/llvm/llvm.cmi .
-	@cp ~/.opam/default/lib/llvm/llvm.mli .
-	@cp ~/.opam/default/lib/llvm/llvm_analysis.cmi .
-	@cp ~/.opam/default/lib/llvm/llvm_analysis.mli .
-	@cp ~/.opam/default/lib/llvm/llvm_scalar_opts.cmi .
-	@cp ~/.opam/default/lib/llvm/llvm_scalar_opts.mli .
-	@cp ~/.opam/default/lib/llvm/llvm_all_backends.cmi .
-	@cp ~/.opam/default/lib/llvm/llvm_all_backends.mli .
-	@cp ~/.opam/default/lib/llvm/llvm_ipo.cmi .
-	@cp ~/.opam/default/lib/llvm/llvm_ipo.mli .
-	@cp ~/.opam/default/lib/llvm/llvm_vectorize.cmi .
-	@cp ~/.opam/default/lib/llvm/llvm_vectorize.mli .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm.cmi .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm.mli .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_analysis.cmi .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_analysis.mli .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_scalar_opts.cmi .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_scalar_opts.mli .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_all_backends.cmi .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_all_backends.mli .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_ipo.cmi .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_ipo.mli .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_vectorize.cmi .
+	@cp ${OPAM_GRACE_PATH}/lib/llvm/llvm_vectorize.mli .
 
 lib/libmylib.a: lib/mylib.c lib/mylib.h
 	gcc -c lib/mylib.c -o lib/mylib.o -Wno-builtin-declaration-mismatch

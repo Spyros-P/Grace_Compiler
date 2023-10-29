@@ -1,8 +1,0 @@
-fun simpleAssigment () : nothing
-    var i : int;
-      
-   { $ main     
-      writeInteger(i);
-      writeChar('\n');
-   } $ main
-
