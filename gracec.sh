@@ -66,14 +66,14 @@ if [[ ${flags[@]} =~ "-f" ]] || [[ ${flags[@]} =~ "-i" ]] ; then
         ${grc} $temp_file $temp_file.ll &&
         llc $temp_file.ll -o $temp_file.s -relocation-model=pic &&
         clang -o $temp_file.out $temp_file.s lib/libmylib.a
-    fi
+    fi &&
     if [[ ${flags[@]} =~ "-i" ]] ; then
         # if -i is set, then the output .imm is written to the standard output.
         cat $temp_file.ll
         if [[ ${flags[@]} =~ "-f" ]] ; then
             echo -e "\n========================================================================\n"
         fi
-    fi
+    fi &&
     if [[ ${flags[@]} =~ "-f" ]] ; then
         # if -f is set, then the output .asm is written to the standard output.
         cat $temp_file.s
