@@ -24,9 +24,8 @@ sudo npm install -g yo generator-code
 yo code
 ```
 
-If the `yo code` fails run:
+If the `yo code` fails, run:
 ```bash
-nvm install node
 sudo apt install curl
 curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash 
 source ~/.profile
