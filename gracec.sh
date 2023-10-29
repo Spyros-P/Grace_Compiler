@@ -55,7 +55,7 @@ if [[ ${flags[@]} =~ "-f" ]] || [[ ${flags[@]} =~ "-i" ]] ; then
     temp_file=$(mktemp)
     while IFS= read -r line || [[ -n $line ]];
     do
-        echo $line
+        echo "$line"
     done > $temp_file
 
     if [[ ${flags[@]} =~ "-O" ]] ; then
