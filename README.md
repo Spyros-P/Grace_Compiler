@@ -1,5 +1,4 @@
-
-<sub>**Disclaimer**: Any instruction given below are tested and working on Linux</sub>
+<sub>**Disclaimer**: Any instruction given below is tested and working on Ubuntu 22.04</sub>
 
 ### SETUP
 
@@ -13,6 +12,17 @@ sudo apt install llvm
 sudo apt install clang
 eval $(opam env)
 ```
+### USAGE
+
+`./gracec.sh <filename> [-O]`
+
+`./gracec.sh -f [-O]` ( source code : STDIN )
+
+`./gracec.sh -i [-O]` ( source code : STDIN )
+
+`./gracec.sh -i -f [-O]` ( source code : STDIN )
+
+<sub>**Note**: When -f or -i flags are enabled, the code must be provided from STDIN (you can not provide any filename as an argument to compiler)</sub>
 
 ### Enable VSCode syntax highlighting
 
