@@ -1,0 +1,18 @@
+fun main() : nothing
+    fun foo() : nothing
+        var x : int;
+        fun bar() : nothing
+            var inc : int;
+            fun foo() : nothing
+            {
+                x <- x + inc;
+            }
+        {
+            return;
+        }
+    {
+        return;
+    }
+{
+    return;
+}
