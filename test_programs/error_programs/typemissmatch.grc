@@ -1,3 +1,8 @@
+$$
+    This program fails because it attemps to assign
+    a value of the wrong type to the 'd' variable.
+    A type error should be triggered.
+$$
 fun typemissmatch () : nothing
    fun test(a, b, c: int) : int
    {

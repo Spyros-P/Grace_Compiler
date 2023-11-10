@@ -1,6 +1,10 @@
+$$
+    This program fails because it is not allowed
+    to call the main function. It does so in the
+    last statement of the print function.
+$$
+
 fun main() : nothing
-
-
     fun print(ref A : int[3][3]; N : int) : nothing
         var i,j : int;
     {
@@ -25,8 +29,7 @@ fun main() : nothing
         }
         writeInteger(A[i][N-1]);
         writeString("\n");
-        $ self destruct mode
-        main();
+        main(); $ <-------- self destruct
     }
     fun matmult(ref A,B,C : int[3][3]; N : int) : nothing
         var i,j,k,sum : int;

@@ -1,0 +1,16 @@
+fun simpleAssigment () : nothing
+$fun helper (a : int) : nothing;
+
+
+fun helper (a : int) : nothing
+      {
+            writeChar('a');
+      }
+   
+   { 
+      helper(1);
+
+    
+
+   } 
+

@@ -1,0 +1,23 @@
+
+fun simpleAssigment () : nothing
+fun helper (a : int) : int;
+
+
+fun helper (a : int) : int
+      {
+        if (a > 5) then {
+            
+            return 0;
+        }
+        else {
+            return 1 + helper(a + 1);
+        }
+           
+      }
+   
+   { 
+      writeInteger(helper(0));
+      writeChar('\n');
+
+   } 
+

@@ -1,0 +1,25 @@
+fun simpleAssigment () : nothing
+   var i : int;   
+   var j: int;
+   var s : char[20];
+   { 
+      
+      i <- readInteger();
+
+      j <- 32769;
+      writeInteger(j);
+      writeChar('\n');
+      strcpy(s, "Hello World!");
+
+
+      writeString("Read integer: ");
+      writeInteger(i);
+      writeChar('\n');
+      writeInteger(i div 10);
+      writeChar('\n');
+      writeInteger(strlen(s));
+      writeChar('\n');
+      writeString(s);
+      writeChar('\n');
+   } 
+

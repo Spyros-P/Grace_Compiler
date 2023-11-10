@@ -1,6 +1,12 @@
+$$
+    This program fails because it is not allowed
+    to call the main function. It does so in
+    a call to the print function. One could argue
+    that it can also fail due to a type error, however
+    we believe that the call-to-main error should come first.
+$$
+
 fun main() : nothing
-
-
     fun print(ref A : int[3][3]; N : int) : nothing
         var i,j : int;
     {

@@ -1,3 +1,9 @@
+$$
+    This program fails because it treats
+    an integer variable as if it was an array.
+    It should trigger some kind of dimension
+    error.
+$$
 fun dim () : nothing
    fun test(a, b, c: int) : int
    {

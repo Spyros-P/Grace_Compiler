@@ -1,0 +1,16 @@
+fun main() : nothing
+var i: int;
+fun Helper () : int
+      var i : int;
+   {
+      i <- 0;
+      
+      if i < 0            then writeString("hey\n");
+      else {return 2;
+         writeString("Wont be printed \n");
+      }
+      writeString("Shouldnt print this \n");
+      return 0;
+
+   }
+   {i<-Helper();}

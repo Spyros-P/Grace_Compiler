@@ -1,6 +1,7 @@
 $$
     This program should fail because grace does not
-    support assignment between arrays
+    support assignment between arrays.
+    Some kind of type error should be triggered.
 $$
 
 fun main() : nothing

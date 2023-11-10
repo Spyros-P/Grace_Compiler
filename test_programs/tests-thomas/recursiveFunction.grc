@@ -1,0 +1,31 @@
+
+fun main () : nothing
+fun helper (a : int) : int;
+
+fun helper2(a:int):int
+{
+    return helper(a);
+}
+
+fun helper (a : int) : int
+
+    var idx: int;
+
+      {
+        idx <- 0;
+        if (a > 5) then {
+            
+            return 0;
+        }
+        else {
+            return 1 + helper(a + 1);
+        }
+           
+      }
+   
+   { 
+      writeInteger(helper2(0));
+      writeChar('\n');
+
+   } 
+

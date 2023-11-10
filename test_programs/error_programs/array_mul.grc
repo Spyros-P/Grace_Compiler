@@ -1,5 +1,10 @@
-fun main() : nothing
+$$
+    This program fails because array multiplication is invalid in grace.
+    Some kind of type error should be triggered.
+$$
 
+
+fun main() : nothing
     var a : int[10];
     var b : int[10];
 {

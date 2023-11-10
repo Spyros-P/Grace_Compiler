@@ -1,3 +1,7 @@
+$$
+    This program fails because it attempts to call
+    a variable as if it was a function.
+$$
 fun callvar(): nothing
     var test, notcallable: int;
 {

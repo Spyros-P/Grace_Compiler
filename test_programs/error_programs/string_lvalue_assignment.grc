@@ -1,5 +1,8 @@
+$$
+    This program fails because it attemps an
+    assignment to a string.
+$$
 fun main() : nothing
-
     var a : int[10];
     var x : char;
 {

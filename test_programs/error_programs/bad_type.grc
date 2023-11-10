@@ -1,3 +1,7 @@
+$$
+    This program fails because arrays cannot be assigned to in grace.
+$$
+
 fun main(): nothing
     var bruh: int[2];
 {

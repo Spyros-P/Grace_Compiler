@@ -1,3 +1,9 @@
+$$
+    This program fails due to a missmatch between
+    the declaration and the definition of the 'foo'
+    function.
+$$
+
 fun decldefmissmatch () : nothing
     fun foo (a, b: int): int;
     fun bar(a: int): int

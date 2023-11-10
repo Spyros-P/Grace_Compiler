@@ -1,0 +1,11 @@
+fun simpleAssigment () : nothing
+   var i : int[5][6];   
+   { 
+      i[2][3] <- 5;
+      i[2][5] <- 7;
+
+      writeInteger(i[2][3]);
+      writeChar('\n');
+
+   } 
+

@@ -1,0 +1,9 @@
+fun simpleAssigment () : nothing
+   var i : char[5];   
+   { 
+      
+      writeInteger(i[2]);
+      writeChar('\n');
+
+   } 
+
