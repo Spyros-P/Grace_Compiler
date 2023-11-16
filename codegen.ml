@@ -66,6 +66,8 @@ let activation_records : llvalue option list ref = ref []
 
 (* ------------------------------------------------- *)
 
+let get_head lst who =
+  try List.hd lst with Failure(str) -> failwith who
 
 let open_scope () =
   symbol_table :=  (Hashtbl.create 10) :: !symbol_table
@@ -74,7 +76,7 @@ let close_scope () =
   symbol_table := List.tl !symbol_table
 
 let current_scope () =
-  List.hd !symbol_table
+  get_head !symbol_table "current_scope"
 
 (*
     Lookup function returns a tuple of (llvalue->llvalue , int) option 
@@ -84,17 +86,21 @@ let current_scope () =
 let lookup info id =
   let rec walk id st n =
     match st with
-    | []          ->  None
+    | []          ->  raise Not_found
     | cs::[]      ->  (try (* remember that the end of the list/stack is the global scope *)
                         Some (Hashtbl.find cs id, -1)
-                       with Not_found -> None)
+                       with Not_found -> raise Not_found)
     | cs::scopes  ->  (try
                         Some (Hashtbl.find cs id, n)
                        with Not_found -> walk id scopes (n+1))
   in 
-    try Some(Hashtbl.find info.built_in_table id, -1)
-    with Not_found -> walk id !symbol_table 0
+    try walk id !symbol_table 0
+    with Not_found -> try Some(Hashtbl.find info.built_in_table id, -1) with Not_found -> None
 
+let lookup_head info id =
+  try
+    Some (Hashtbl.find (current_scope ()) id, 0)
+  with Not_found -> None
 
 (* REMEMBER: check that ids dont confict with fix fun ids eg print *)
 let insert id llval =
@@ -111,8 +117,8 @@ let remove_head id =
 let rec get_struct_param (f:func_decl) lst =
   match !(!(f.depend)), lst with
   | Some(1,_), Some(hd)::tl ->  hd
-  | _ , hd::tl              ->  get_struct_param (match !(!(f.father_func)) with Some(x) -> x | _ -> failwith "get_struct_param") tl
-  | _ , _                   ->  failwith "get_struct_param"
+  | _ , hd::tl              ->  get_struct_param (match !(!(f.father_func)) with Some(x) -> x | None -> failwith "get_struct_param") tl
+  | _ , []                  ->  failwith "get_struct_param"
 
 
 (* ------------------------------------------------- *)
@@ -182,12 +188,12 @@ let id_get_llvalue info id =
                                           in Llvm.build_load prev_ac_rec "prev_ac_rec" info.builder) (depth-1)
     | Some(_,_) , _ ->  walk father_decl ac_link (depth-1)
     | _ , _ -> failwith "id_get_llvalue"
-  in let func_decl = List.hd !fun_decls
-  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0 (* check code line for potential hazard*)
+  in let func_decl = get_head !fun_decls "id_get_llvalue"
+  in let parent_acc_link = Llvm.param (get_head !(info.funcs) "id_get_llvalue") 0 (* check code line for potential hazard*)
   in match lookup info id with
   | Some(Efun(_,llval),i)         ->  (llval,Fun)
   | Some(Evar(_,llval,vtype),-1)  ->  (llval (info.c32 0),vtype)
-  | Some(Evar(_,llval,vtype),0)   ->  (llval (match List.hd !activation_records with Some(x) -> x | None -> (info.c32 0)),vtype)
+  | Some(Evar(_,llval,vtype),0)   ->  (llval (match get_head !activation_records "id_get_llvalue" with Some(x) -> x | None -> (info.c32 0)),vtype)
   | Some(Evar(_,llval,vtype),i)   ->  (llval (walk func_decl parent_acc_link i),vtype)
   | _                             ->  failwith "id_get_llvalue"
 
@@ -201,13 +207,13 @@ let fun_get_struct_ptr info id =
                                           in Llvm.build_load prev_ac_rec "prev_ac_rec" info.builder) (depth-1)
     | Some(_,_) , _ ->  walk father_decl ac_link (depth-1)
     | _ , _ -> failwith "fun_get_struct_ptr"
-  in let func_decl = List.hd !fun_decls
-  in let parent_acc_link = Llvm.param (List.hd !(info.funcs)) 0
+  in let func_decl = get_head !fun_decls "func_decl"
+  in let parent_acc_link = Llvm.param (get_head !(info.funcs) "fun_get_struct_ptr") 0
   in match lookup info id with
   | Some(_,-1)            ->  (fun x -> x)
   | Some(Efun(decl,_),0)  ->  (match !(!(decl.depend)) with
                               | None      ->  (fun x -> x)
-                              | Some(1,_) ->  let curr_ac_rec = (match List.hd !activation_records with Some(x) -> x | _ -> failwith "fun_get_struct_ptr")
+                              | Some(1,_) ->  let curr_ac_rec = (match get_head !activation_records "fun_get_struct_ptr" with Some(x) -> x | _ -> failwith "fun_get_struct_ptr")
                                               in (fun x -> curr_ac_rec::x)
                               | Some(d,_) ->  (fun x -> (walk func_decl parent_acc_link (d-1))::x))
   | Some(Efun(decl,_),i)  ->  (match !(!(decl.depend)) with
@@ -313,12 +319,12 @@ and codegen_call_func info id params =
 (* the following functions are helpers for handling statements *)
 let codegen_ret info =
   ignore (Llvm.build_ret_void info.builder);
-  let ret_bb = append_block info.context "after_ret" (List.hd !(info.funcs)) in
+  let ret_bb = append_block info.context "after_ret" (get_head !(info.funcs) "codegen_ret") in
   position_at_end ret_bb info.builder
 
 let codegen_retval info expr =
   ignore (Llvm.build_ret (codegen_expr info expr) info.builder);
-  let ret_bb = append_block info.context "after_ret" (List.hd !(info.funcs)) in
+  let ret_bb = append_block info.context "after_ret" (get_head !(info.funcs) "codegen_retval") in
   position_at_end ret_bb info.builder
 
 
@@ -506,7 +512,7 @@ let codegen_activation_record info func ffunc =
 
 let rec codegen_localdef info def =
   match def with
-  | EFuncDef(func)        ->  let ffunc = match lookup info func.id with
+  | EFuncDef(func)        ->  let ffunc = match lookup_head info func.id with
                                           | None  ->  let ffunc_type = Llvm.function_type (codegen_type info func.ret false) (codegen_fun_array_args info func.args (fun_def2decl func)) in
                                                       let ffunc = Llvm.declare_function (func.id ^ "_$" ^ (string_of_int !(info.count_funs))) ffunc_type info.the_module in
                                                       info.count_funs := !(info.count_funs)+1;
