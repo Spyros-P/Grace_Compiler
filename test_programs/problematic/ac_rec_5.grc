@@ -1,0 +1,16 @@
+fun main() : nothing
+    fun foo1() : nothing
+        fun foo2() : nothing
+            fun foo1() : nothing
+            {
+                writeString("hi");
+            }
+        {
+            foo1();
+        }
+    {   
+        foo2();
+    }
+{
+    foo1();
+}
