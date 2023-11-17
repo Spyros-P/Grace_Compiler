@@ -311,7 +311,9 @@ let rec symbol_add_def (decl:local_def) =
                                                 printf "\nFunction definition:\n";
                                                 print_file_lines filename func.pos.line_start func.pos.line_end;
                                                 exit 1);
-                      insert func.id (Efuncdef(fun_def2decl func, ref false)); sem_fun func
+                      let decl=fun_def2decl func in insert func.id (Efuncdef(decl, ref false)); sem_fun func;
+                      (* default dependency : decl is the child of current function and the relative depth is -1. trust me it works. *)
+                      caller_callee_dependancies := (get_curr_fun (),decl,-1)::!caller_callee_dependancies
   | EFuncDecl(func_decl) -> (match lookup_head func_decl.id with
                             | None -> if (check_refs func_decl) then ()
                                       else (error "Function array arguments must be declared as references\n";
@@ -439,6 +441,22 @@ let rec fill_rest_fields f =
   in f.pass_acc_link := store_acc_link defs;
   List.iter fill_rest_fields defs
 
+(* Helper function for DEBUGGING perposes ONLY *)
+(*
+let rec print_depend f depth =
+  let string_depend depend =
+    match depend with
+    | None          ->  "None"
+    | Some(min,max) ->  "some(" ^ string_of_int min ^ "," ^ string_of_int max ^ ")"
+  in let dig depth loc_def =
+    match loc_def with
+    | EFuncDef(x) ->  print_depend x (depth+1)
+    | _           ->  ()
+  in (Printf.printf "%s%s : %s , Father : %s , Grandfather : %s\n" (String.make (depth*2) ' ') f.id (string_depend !(f.depend))
+  (match !(f.father_func) with Some(f) -> f.id | None -> "NaN") (match !(f.father_func) with Some(f) -> (match !(!(f.father_func)) with Some(f) -> f.id | None -> "NaN") | None -> "NaN");
+  List.iter (dig depth) (f.local_defs))
+  *)
+
 let sem_main (f:func) =
   match f.args, f.ret with
   | [], ENothing  ->  let main_func = fun_def2decl f in
@@ -446,5 +464,7 @@ let sem_main (f:func) =
                       main_fun := main_func;
                       sem_fun f;
                       fix_depends ();
-                      fill_rest_fields f;
+                      fill_rest_fields f
+                      (*;print_depend f 0;
+                      print_endline ""*)
   | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and must return nothing\n" f.id; exit 1)
