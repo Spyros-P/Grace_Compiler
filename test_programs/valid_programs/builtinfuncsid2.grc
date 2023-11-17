@@ -1,6 +1,0 @@
-fun builtinfuncsid2 () : nothing
-    var writeString : int;
-{
-   writeString <- 5;
-   writeString("Hello world!\n");
-}
