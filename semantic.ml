@@ -271,18 +271,17 @@ let check_refs (decl:func_decl) =
   let rec walk arg_lst =
     match arg_lst with
     | hd::tl  ->  (match hd.atype with
-                  | ECharacter([]) -> print_endline"Case 1"; walk tl
-                  | EInteger([])   -> print_endline"Case 2"; walk tl
-                  | _              -> print_endline"Case 3"; hd.ref && walk tl)
-    | []      -> print_endline "Case 4"; true
+                  | ECharacter([]) -> walk tl
+                  | EInteger([])   -> walk tl
+                  | _              -> hd.ref && walk tl)
+    | []      -> true
   in walk decl.args
 
 
 let rec symbol_add_def (decl:local_def) =
   match decl with
   | EFuncDef(func) -> (match lookup_head func.id with
-                      | None -> print_endline"checking refs";
-                                if (check_refs (fun_def2decl func)) then ()
+                      | None -> if (check_refs (fun_def2decl func)) then ()
                                 else (error "Function array arguments must be declared as references\n";
                                       printf "Function definition:\n";
                                       print_file_lines filename func.pos.line_start func.pos.line_end;
