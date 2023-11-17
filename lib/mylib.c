@@ -27,8 +27,13 @@ int8_t readChar() {
 }
 
 void readString(int32_t size, int8_t *str) {
-    scanf("%s", str);
-    str[size-1] = '\0';
+    int32_t counter = 0;
+    int32_t c;
+    while (counter < size - 1 && (c = getchar()) != '\n' && c != EOF ) {
+        str[counter++] = c;
+    }
+    
+    str[counter] = '\0';
 }
 
 int32_t ascii(int8_t c) {
