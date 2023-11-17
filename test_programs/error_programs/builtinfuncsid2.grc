@@ -1,0 +1,12 @@
+$$
+    This program fails because it overwrites
+    a predefined function with a variable and
+    then calls it
+$$
+
+fun builtinfuncsid2 () : nothing
+    var writeString : int;
+{
+   writeString <- 5;
+   writeString("Hello world!\n");
+}
