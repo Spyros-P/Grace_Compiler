@@ -32,7 +32,20 @@ type llvm_info = {
   funcs           :   Llvm.llvalue list ref;
   built_in_table  :   (string, entry) Hashtbl.t;
   count_funs      :   int ref;
+  count_strings   :   int ref;
 }
+
+let string_table : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 10
+
+let lookup_string stringkey =
+  try Some (Hashtbl.find string_table stringkey)
+  with Not_found -> None
+
+let insert_string stringkey llval =
+  if Hashtbl.mem string_table stringkey then
+    failwith "insert_string"
+  else
+    Hashtbl.add string_table stringkey llval
 
 
 
@@ -236,14 +249,20 @@ let rec codegen_lval_for_array info lval index_expr =
   | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                 in let index = codegen_expr info index_expr
                                 in Llvm.build_gep llval [| info.c32 0;  index |] "pointer" info.builder
-  | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
-                                let the_str = Llvm.declare_global str_type (str ^ "_$str") info.the_module in
-                                Llvm.set_linkage Llvm.Linkage.Private the_str;
-                                Llvm.set_global_constant true the_str;
-                                Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
-                                Llvm.set_alignment 1 the_str;
-                                let index = codegen_expr info index_expr in
-                                Llvm.build_gep the_str [| info.c32 0; index |] "" info.builder
+  | EAssString(str,_)       ->  match lookup_string str with
+                                | Some(str_el_ptr)   -> let index = codegen_expr info index_expr in
+                                                          Llvm.build_gep str_el_ptr [| index |] "pointer" info.builder
+                                | None               -> let str_type = Llvm.array_type info.i8 (1 + String.length str) in
+                                                        let the_str = Llvm.declare_global str_type ("string_$" ^ (string_of_int !(info.count_strings))) info.the_module in
+                                                        insert_string str the_str;  (* insert the string llvalue to the table *)
+                                                        info.count_strings := !(info.count_strings)+1;
+                                                        Llvm.set_linkage Llvm.Linkage.Private the_str;
+                                                        Llvm.set_global_constant true the_str;
+                                                        Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
+                                                        Llvm.set_alignment 1 the_str;
+                                                        let index = codegen_expr info index_expr in
+                                                        Llvm.build_gep the_str [| info.c32 0; index |] "" info.builder
+                                
 
 
 and codegen_lval_load info lval =
@@ -251,16 +270,9 @@ and codegen_lval_load info lval =
   | EAssId(id,_)            ->  let llval,vtype = id_get_llvalue info id in
                                 let llval = Llvm.build_load llval "lval_tmp" info.builder in
                                 if vtype=Pointer then Llvm.build_load llval "lval_tmp" info.builder else llval
-  | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
-                                let the_str = Llvm.declare_global str_type (str ^ "_string") info.the_module in
-                                Llvm.set_linkage Llvm.Linkage.Private the_str;
-                                Llvm.set_global_constant true the_str;
-                                Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
-                                Llvm.set_alignment 1 the_str;
-                                the_str
   | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                 in Llvm.build_load llval "lval_tmp" info.builder
-
+  | EAssString(str,_)       ->  failwith "codegen_lval_load EAssString"
 
 and codegen_expr info ast =
   match ast with
@@ -288,15 +300,21 @@ and codegen_call_func info id params =
                                   if vtype==target_type then Llvm.build_load llval "lval_tmp" info.builder
                                   else if target_type=Pointer then llval
                                   else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "pointer" info.builder
-    | EAssString(str,_)       ->  let str_type = Llvm.array_type info.i8 (1 + String.length str) in
-                                  let the_str = Llvm.declare_global str_type (str ^ "_$str") info.the_module in
-                                  Llvm.set_linkage Llvm.Linkage.Private the_str;
-                                  Llvm.set_global_constant true the_str;
-                                  Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
-                                  Llvm.set_alignment 1 the_str;
-                                  if target_type==Array then
-                                    Llvm.build_load the_str "lval_tmp" info.builder
-                                  else Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder
+    | EAssString(str,_)       -> (match lookup_string str with
+                                 | Some(str_el_ptr)   -> if target_type==Array then Llvm.build_load str_el_ptr "lval_tmp" info.builder
+                                                          else Llvm.build_gep str_el_ptr [| info.c32 0; info.c32 0 |] "" info.builder
+                                 | None               -> let str_type = Llvm.array_type info.i8 (1 + String.length str) in
+                                                         let the_str  = Llvm.declare_global str_type ("string_$" ^ string_of_int !(info.count_strings)) info.the_module in
+                                                         info.count_strings := !(info.count_strings)+1;
+                                                         insert_string str the_str;  (* insert the string llvalue to the table *)
+                                                         Llvm.set_linkage Llvm.Linkage.Private the_str;
+                                                         Llvm.set_global_constant true the_str;
+                                                         Llvm.set_initializer (Llvm.const_stringz info.context str) the_str;
+                                                         Llvm.set_alignment 1 the_str;
+                                                         if target_type==Array then (* ponder whether == or = *)
+                                                           Llvm.build_load the_str "lval_tmp" info.builder
+                                                         else Llvm.build_gep the_str [| info.c32 0; info.c32 0 |] "" info.builder)
+                                  
     | EAssArrEl(lval,expr,_)  ->  let llval = codegen_lval_for_array info lval expr
                                   in if target_type=Pointer then llval
                                   else Llvm.build_gep llval [| info.c32 0; info.c32 0 |] "pointer" info.builder
@@ -655,6 +673,7 @@ let llvm_compile_and_dump main_func optimizations_enable temp_file =
     funcs            = ref [main];
     built_in_table   = built_in_table;
     count_funs       = ref 1;
+    count_strings    = ref 1;
   } in
   fun_decls := [fun_def2decl main_func];
   let values_from_hashtable htbl =
