@@ -7,7 +7,9 @@ LLVMPACKAGES=llvm,llvm.analysis,llvm.all_backends,llvm.scalar_opts,llvm.ipo,llvm
 OCAMLBUILD=ocamlbuild
 OCAMLBUILDFLAGS=-use-menhir -pkgs $(LLVMPACKAGES) -lflags -cclib,$(LLVMLDFLAGS)
 
-OPAM_GRACE_PATH=~/.opam/default
+ifndef OPAM_GRACE_PATH
+	OPAM_GRACE_PATH=~/.opam/default
+endif
 
 default: main.native lib/libmylib.a
 
