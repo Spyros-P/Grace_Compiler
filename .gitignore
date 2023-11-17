@@ -13,3 +13,4 @@ main.native
 *.tex
 *.toc
 .vscode
+Makefile
