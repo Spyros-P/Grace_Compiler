@@ -1,0 +1,15 @@
+fun main() : nothing
+    fun tempWriteString(ref input : char []):nothing
+    {
+        writeString(input);
+    }
+    fun writeString(ref input : char []):nothing
+    {
+        writeChar('~');
+        tempWriteString(input);
+        writeChar('~');
+        writeChar('\n');
+    }
+{
+    writeString("DESUUUUU");
+}
