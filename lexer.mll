@@ -39,7 +39,7 @@
                 | "x"   ->
                     (try
                         let code = int_of_string ("0x" ^ String.sub str 2 2) in
-                        (String.make 1 (Char.chr code)) ^ (read_str (String.sub str 3 (String.length str-3)))
+                        (String.make 1 (Char.chr code)) ^ (read_str (String.sub str 4 (String.length str-4)))
                     with
                         _ -> failwith "Invalid hexadecimal escape sequence"
                     )
