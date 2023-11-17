@@ -1,0 +1,21 @@
+$$
+    this program tests whether readString
+    actually begins reading at the correct
+    where it left off.
+$$
+fun main(): nothing
+    var buffer : char [100];
+{
+    writeString("Enter a message more than 5 chars long: ");
+    readString(1, buffer);
+    writeString(buffer);
+    readString(1, buffer);
+    writeString(buffer);
+    readString(1, buffer);
+    writeString(buffer);
+    readString(1, buffer);
+    writeString(buffer);
+    readString(100, buffer);
+    writeString(buffer);
+    writeString("\nThe string should read correctly as one.\n");
+}
