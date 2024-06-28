@@ -81,7 +81,7 @@
 
 program:
     | f=func_def EOF                                                            { f }
-    | EOF                                                                       { error "No code found!\n"; exit 1 }
+    | EOF                                                                       { error "No code found!\n"; exit 0 }
     ;
 
 func_def:
@@ -103,7 +103,7 @@ data_type:
     ;
 
 ttype:
-    | d=data_type lst=list(delimited("[", INTEGER, "]"))                        { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> (error "Internal error :(  {error code: ttype in parser}\n"; exit 1) }
+    | d=data_type lst=list(delimited("[", INTEGER, "]"))                        { match d with EInteger([]) -> EInteger(lst) | ECharacter([]) -> ECharacter(lst) | _ -> (error "Internal error :(  {error code: ttype in parser}\n"; exit 0) }
     ;
 
 ret_type:
@@ -112,8 +112,8 @@ ret_type:
     ;
 
 fpar_type:
-    | d=data_type lst=list(delimited("[", INTEGER, "]"))                        { match d with EInteger([]) -> EInteger(lst)     | ECharacter([]) -> ECharacter(lst)     | _ -> (error "Internal error :(  {error code: fpar_type in parser}\n"; exit 1) }
-    | d=data_type "[" "]" lst=list(delimited("[", INTEGER, "]"))                { match d with EInteger([]) -> EInteger(-1::lst) | ECharacter([]) -> ECharacter(-1::lst) | _ -> (error "Internal error :(  {error code: fpar_type in parser}\n"; exit 1) }
+    | d=data_type lst=list(delimited("[", INTEGER, "]"))                        { match d with EInteger([]) -> EInteger(lst)     | ECharacter([]) -> ECharacter(lst)     | _ -> (error "Internal error :(  {error code: fpar_type in parser}\n"; exit 0) }
+    | d=data_type "[" "]" lst=list(delimited("[", INTEGER, "]"))                { match d with EInteger([]) -> EInteger(-1::lst) | ECharacter([]) -> ECharacter(-1::lst) | _ -> (error "Internal error :(  {error code: fpar_type in parser}\n"; exit 0) }
     ;
 
 local_def:
@@ -134,7 +134,7 @@ stmt:
     | ";"                                                                       { EEmpty({line_start=(!prev_line);line_end=(!prev_line);char_start=0;char_end=0}) }
     | l=l_value ln1=line "<-" e=expr ln2=line sem=semicol                       { if sem=false then (error "Missing semicolon at line %d\n" ln2; print_file_lines filename ln1 ln2; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln2/10 + 5)); EAss(l,e,{line_start=ln1;line_end=(!prev_line);char_start=0;char_end=0}) }
     | b=block                                                                   { match b with EListStmt(_,pos) -> EBlock(b,pos) }
-    | call=func_call ln=line sem=semicol                                        { if sem=false then (error "Missing semicolon at line %d\n" ln; print_file_lines filename ln ln; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln/10 + 5)); match call with EFuncCall(id,list,pos) -> ECallFunc(id,list,pos) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 1) }
+    | call=func_call ln=line sem=semicol                                        { if sem=false then (error "Missing semicolon at line %d\n" ln; print_file_lines filename ln ln; print_carat_with_spaces (!prev_char - !prev_start_line_char + ln/10 + 5)); match call with EFuncCall(id,list,pos) -> ECallFunc(id,list,pos) | _ -> (error "Internal error :(  {error code: stmt in parser}\n"; exit 0) }
     | IF c=cond THEN s=stmt                                                     { EIf(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     | IF c=cond THEN s1=stmt ELSE s2=stmt                                       { EIfElse(c,s1,s2,{line_start=0;line_end=0;char_start=0;char_end=0}) }
     | WHILE c=cond DO s=stmt                                                    { EWhile(c,s,{line_start=0;line_end=0;char_start=0;char_end=0}) }

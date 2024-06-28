@@ -69,7 +69,7 @@ and consume_multi_comment = parse
     | '$'  { consume_multi_comment lexbuf }
     | '\n' { start_line_char := lexbuf.lex_curr_p.pos_cnum; Lexing.new_line lexbuf; consume_multi_comment lexbuf }
     | [^'$' '\n']+    { consume_multi_comment lexbuf } (* consume large chunks for speed up *)
-    | eof  { Printf.eprintf "Multiline comment started but never closed\n"; exit 1 }
+    | eof  { Printf.eprintf "Multiline comment started but never closed\n"; exit 0 }
 
 and lexer = parse
     | letter(letter | digit | '_')* as str

@@ -53,12 +53,12 @@ let symbol_add_arg (arg:func_args) =
                             print_file_lines filename x.pos.line_start x.pos.line_end;
                             printf "\nArgument definition:\n";
                             print_file_lines filename arg.pos.line_start arg.pos.line_end;
-                            exit 1
+                            exit 0
   | Some(Evar(x,_,_)) ->  let curr_func = get_curr_fun()
                           in
                               error "Two function arguments have the same name \"%s\", in function \"%s\"\n" x.id curr_func.id;
                               print_file_lines filename curr_func.pos.line_start curr_func.pos.line_end;
-                              exit 1
+                              exit 0
   | _ -> failwith "symbol_add_arg");
   insert arg.id (Evar({id=arg.id;atype=arg.atype;to_ac_rec=arg.to_ac_rec;pos=arg.pos}, ref false, ref false))
 
@@ -73,7 +73,7 @@ let equal_types t1 t2 =
 let check_function_return_type (func:func_decl) t =
     if equal_types func.ret t
     then ()
-    else (error "Function \"%s\" returns type of \"%s\" not type of \"%s\"\n" func.id (types_to_str func.ret) (types_to_str t); print_file_lines filename func.pos.line_start func.pos.line_end; exit 1)
+    else (error "Function \"%s\" returns type of \"%s\" not type of \"%s\"\n" func.id (types_to_str func.ret) (types_to_str t); print_file_lines filename func.pos.line_start func.pos.line_end; exit 0)
   
 
 let check_eq_neq_op t1 t2 com pos =
@@ -82,7 +82,7 @@ let check_eq_neq_op t1 t2 com pos =
     else (error ("Comparison operator \"%s\" should be used between integers or between characters\n") (comp_to_str com);
           printf "\t%s %s %s\n" (types_to_str t1) (comp_to_str com) (types_to_str t2);
           print_file_lines filename pos.line_start pos.line_end;
-          exit 1)
+          exit 0)
 
 let check_comp_ops t1 t2 com pos =
     if (equal_types t1 (EInteger([])) && equal_types t2 (EInteger([])))
@@ -90,7 +90,7 @@ let check_comp_ops t1 t2 com pos =
     else (error "Comparison operator \"%s\" should be used between integers\n" (comp_to_str com);
           printf "\t%s %s %s\n" (types_to_str t1) (comp_to_str com) (types_to_str t2);
           print_file_lines filename pos.line_start pos.line_end;
-          exit 1)
+          exit 0)
 
 let check_decl_def (decl:func_decl) (def:func) =
   let rec equal_fun_args (arg1:func_args list) (arg2:func_args list) =
@@ -111,12 +111,12 @@ let check_decl_def (decl:func_decl) (def:func) =
                 print_file_lines filename decl.pos.line_start decl.pos.line_end;
                 printf "\nFunction definition:\n";
                 print_file_lines filename def.pos.line_start def.pos.line_end;
-                exit 1))
+                exit 0))
     else (printf "Function declaration:\n";
           print_file_lines filename decl.pos.line_start decl.pos.line_end;
           printf "\nFunction definition:\n";
           print_file_lines filename def.pos.line_start def.pos.line_end;
-          exit 1)
+          exit 0)
 
 
 
@@ -134,10 +134,10 @@ let rec get_lval_type (x:lvalue) =
                                     (match tp with
                                     | EInteger(hd::tl)   -> EInteger(tl)
                                     | ECharacter(hd::tl) -> ECharacter(tl)
-                                    | _ -> (error "Array dimensions have been exceeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 1))
-                                else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 1)
+                                    | _ -> (error "Array dimensions have been exceeded\n"; print_file_lines filename pos.line_start pos.line_end; exit 0))
+                                else (error "Array brackets must contain an expression evaluted to integer not type of \"%s\"\n" (types_to_str t); exit 0)
   | EAssId(str,pos)       ->  match lookup str with
-                              | None -> (error "Variable \"%s\" has not been declared\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                              | None -> (error "Variable \"%s\" has not been declared\n" str; print_file_lines filename pos.line_start pos.line_end; exit 0)
                               | Some(Evar(v,b,_),i) ->  b := true; (* used *)
                                                         let curr_fun = get_curr_fun() in
                                                         if (i > 0) 
@@ -158,13 +158,13 @@ and sem_expr (e:expr) =
                                                                            print_file_lines filename var.pos.line_start var.pos.line_end;
                                                                            printf "\nUsed as:\n";
                                                                            print_file_lines filename pos.line_start pos.line_end;
-                                                                           exit 1
+                                                                           exit 0
                                             | _ -> failwith "sem_expr"
                                             )
                                     in
                                       (let curr_fn = get_curr_fun() in
                                       if (i = -1 && id = (!main_fun).id) then
-                                        (error "Main Function \"%s\" is not callable.\n" (!main_fun).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                        (error "Main Function \"%s\" is not callable.\n" (!main_fun).id ; print_file_lines filename pos.line_start pos.line_end; exit 0)
                                       else
                                         if (i>(-1) && (curr_fn.id <> fn.id))
                                         then caller_callee_dependancies := (curr_fn,fn,i-1)::!caller_callee_dependancies;
@@ -174,7 +174,7 @@ and sem_expr (e:expr) =
                                             print_file_lines filename fn.pos.line_start fn.pos.line_end;
                                             printf "\nUsed in:\n";
                                             print_file_lines filename pos.line_start pos.line_end;
-                                            exit 1))
+                                            exit 0))
                                     end
   | EBinOp(bop,e1,e2,pos)   ->  let
                                   t1=(sem_expr e1) and t2=(sem_expr e2)
@@ -184,7 +184,7 @@ and sem_expr (e:expr) =
                                   else (error "Operator \"%s\" should be used between integers\n" (binop_to_str bop);
                                         printf "\t%s %s %s\n" (types_to_str t1) (binop_to_str bop) (types_to_str t2);
                                         print_file_lines filename pos.line_start pos.line_end;
-                                        exit 1)
+                                        exit 0)
   | EUnOp(op,e,pos)         ->  let
                                   t=(sem_expr e)
                                 in
@@ -193,7 +193,7 @@ and sem_expr (e:expr) =
                                   else (error "Operator \"%s\" should be assigned to an integer\n" (uop_to_str op);
                                         printf "\t%s %s\n" (uop_to_str op) (types_to_str t);
                                         print_file_lines filename pos.line_start pos.line_end;
-                                        exit 1)
+                                        exit 0)
 
 let rec lval_is_string (l:lvalue) =
   match l with
@@ -215,14 +215,14 @@ let rec sem_stmt (s:stmt) =
                                                                         print_file_lines filename var.pos.line_start var.pos.line_end;
                                                                         printf "\nUsed as:\n";
                                                                         print_file_lines filename pos.line_start pos.line_end;
-                                                                        exit 1
+                                                                        exit 0
                                             | None -> error "Function \"%s\" used but was not previously declared\n" x;
                                                       print_file_lines filename pos.line_start pos.line_end;
-                                                    exit 1
+                                                    exit 0
                                     in
                                       let curr_fn = get_curr_fun() in
                                       if (depth = -1 && x = (!main_fun).id)
-                                      then (error "Main Function \"%s\" is not callable.\n" (!main_fun).id ; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      then (error "Main Function \"%s\" is not callable.\n" (!main_fun).id ; print_file_lines filename pos.line_start pos.line_end; exit 0)
                                       else 
                                         if (depth >(-1) && (curr_fn.id <> fn.id)) (**)
                                         then caller_callee_dependancies := (curr_fn,fn,depth-1)::!caller_callee_dependancies;
@@ -230,20 +230,20 @@ let rec sem_stmt (s:stmt) =
                                       then (match fn.ret with 
                                             | ENothing -> ()
                                             | _ -> warning "Return value (type of %s) of function \"%s\" is ignored\n" (types_to_str fn.ret) x; print_file_lines filename pos.line_start pos.line_end)
-                                      else (error "Function argument type mismatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                      else (error "Function argument type mismatch in fuction call of \"%s\"\n" x; print_file_lines filename pos.line_start pos.line_end; exit 0)
                                 end
   | EAss(lval,e,pos)        ->  (match lval_is_string lval with
-                                | (res,str) ->  if res then (error "Assignment of read-only location '\"%s\"'\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1)
+                                | (res,str) ->  if res then (error "Assignment of read-only location '\"%s\"'\n" str; print_file_lines filename pos.line_start pos.line_end; exit 0)
                                                 else (
                                                   let
                                                     t1=(get_lval_type lval) and t2=sem_expr e
                                                   in
                                                     match t1 with
-                                                    | EInteger(hd::tl)   -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
-                                                    | ECharacter(hd::tl) -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 1
+                                                    | EInteger(hd::tl)   -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 0
+                                                    | ECharacter(hd::tl) -> error "Cannot assign to array%s.\n" str; print_file_lines filename pos.line_start pos.line_end; exit 0
                                                     | _ ->  if equal_types t1 t2
                                                             then ()
-                                                            else (error "Cannot assign type of \"%s\" to type of \"%s\"\n" (types_to_str t2) (types_to_str t1); print_file_lines filename pos.line_start pos.line_end; exit 1)))
+                                                            else (error "Cannot assign type of \"%s\" to type of \"%s\"\n" (types_to_str t2) (types_to_str t1); print_file_lines filename pos.line_start pos.line_end; exit 0)))
   | EIf(c,stm,_)            ->  sem_cond c; sem_stmt stm
   | EIfElse(c,stm1,stm2,_)  ->  sem_cond c; sem_stmt stm1; sem_stmt stm2
   | EWhile(c,stm,_)         ->  sem_cond c; sem_stmt stm
@@ -285,7 +285,7 @@ let rec symbol_add_def (decl:local_def) =
                                 else (error "Function array arguments must be declared as references\n";
                                       printf "Function definition:\n";
                                       print_file_lines filename func.pos.line_start func.pos.line_end;
-                                      exit 1)
+                                      exit 0)
                       | Some(Efundecl(x,_)) ->  (* the function found its declaration and now it completes it *)
                                                 x.depend := func.depend;
                                                 x.father_func := func.father_func;
@@ -297,19 +297,19 @@ let rec symbol_add_def (decl:local_def) =
                                                 print_file_lines filename x.pos.line_start x.pos.line_end;
                                                 printf "\nSecond definition:\n";
                                                 print_file_lines filename func.pos.line_start func.pos.line_end;
-                                                exit 1)
+                                                exit 0)
                                                 else
                                                   if (not (check_refs (fun_def2decl func)))
                                                   then (error "Function array arguments must be declared as references\n";
                                                         printf "Function definition:\n";
                                                         print_file_lines filename func.pos.line_start func.pos.line_end;
-                                                        exit 1)
+                                                        exit 0)
                       | Some(Evar(x,_,_))   ->  error "Name conflict: variable \"%s\" and function \"%s\"\n" func.id func.id;
                                                 printf "Variable definition:\n";
                                                 print_file_lines filename x.pos.line_start x.pos.line_end;
                                                 printf "\nFunction definition:\n";
                                                 print_file_lines filename func.pos.line_start func.pos.line_end;
-                                                exit 1);
+                                                exit 0);
                       let decl=fun_def2decl func in insert func.id (Efuncdef(decl, ref false)); sem_fun func;
                       (* default dependency : decl is the child of current function and the relative depth is -1. trust me it works. *)
                       caller_callee_dependancies := (get_curr_fun (),decl,-1)::!caller_callee_dependancies
@@ -318,19 +318,19 @@ let rec symbol_add_def (decl:local_def) =
                                       else (error "Function array arguments must be declared as references\n";
                                             printf "Function definition:\n";
                                             print_file_lines filename func_decl.pos.line_start func_decl.pos.line_end;
-                                            exit 1)
+                                            exit 0)
                             | Some(Efundecl(x,_)) ->  error "Duplicate declaration of function \"%s\"\n" x.id;
                                                       printf "Fist declaration:\n";
                                                       print_file_lines filename x.pos.line_start x.pos.line_end;
                                                       printf "\nSecond declaration:\n";
                                                       print_file_lines filename func_decl.pos.line_start func_decl.pos.line_end;
-                                                      exit 1
+                                                      exit 0
                             | Some(Evar(x,_,_))   ->  error "Name conflict: function \"%s\" and variable \"%s\"\n" x.id x.id;
                                                       printf "Variable definition:\n";
                                                       print_file_lines filename x.pos.line_start x.pos.line_end;
                                                       printf "\nFunction declaration:\n";
                                                       print_file_lines filename func_decl.pos.line_start func_decl.pos.line_end;
-                                                      exit 1
+                                                      exit 0
                             | Some(Efuncdef(x,_)) ->  if (x.pos.line_start <> 0) (* all internal functions have definitions, not declarations *)
                                                       then
                                                         (error "Declaration after definition of function \"%s\"\n" x.id;
@@ -338,13 +338,13 @@ let rec symbol_add_def (decl:local_def) =
                                                         print_file_lines filename x.pos.line_start x.pos.line_end;
                                                         printf "\nDeclaration:\n";
                                                         print_file_lines filename func_decl.pos.line_start func_decl.pos.line_end;
-                                                        exit 1)
+                                                        exit 0)
                                                       else
                                                         if (not (check_refs func_decl))
                                                         then (error "Function array arguments must be declared as references\n";
                                                               printf "Function definition:\n";
                                                               print_file_lines filename func_decl.pos.line_start func_decl.pos.line_end;
-                                                              exit 1));
+                                                              exit 0));
                             insert func_decl.id (Efundecl(func_decl, ref false))
   | EVarDef(var) -> (match lookup_head var.id with
                     | None -> ()
@@ -353,7 +353,7 @@ let rec symbol_add_def (decl:local_def) =
                                               print_file_lines filename x.pos.line_start x.pos.line_end;
                                               printf "\nSecond declaration:\n";
                                               print_file_lines filename var.pos.line_start var.pos.line_end;
-                                              exit 1
+                                              exit 0
                     | Some(Efuncdef(x,_)) ->  if (x.pos.line_start <> 0)
                                               then
                                                 (error "Name conflict: function \"%s\" and variable \"%s\"\n" x.id x.id;
@@ -361,13 +361,13 @@ let rec symbol_add_def (decl:local_def) =
                                                 print_file_lines filename x.pos.line_start x.pos.line_end;
                                                 printf "\nVariable definition:\n";
                                                 print_file_lines filename var.pos.line_start var.pos.line_end;
-                                                exit 1)
+                                                exit 0)
                     | Some(Evar(x,_,_))   ->  error "Duplicate definition of variable \"%s\"\n" x.id;
                                               printf "Fist definition:\n";
                                               print_file_lines filename x.pos.line_start x.pos.line_end;
                                               printf "\nSecond definition:\n";
                                               print_file_lines filename var.pos.line_start var.pos.line_end;
-                                              exit 1);
+                                              exit 0);
                     insert var.id (Evar(var, ref false, ref false))
 
 
@@ -466,4 +466,4 @@ let sem_main (f:func) =
                       fill_rest_fields f
                       (*;print_depend f 0;
                       print_endline ""*)
-  | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and must return nothing\n" f.id; exit 1)
+  | _ , _         ->  (error "Main function \"%s\" must not contain any arguments and must return nothing\n" f.id; exit 0)

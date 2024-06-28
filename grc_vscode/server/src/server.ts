@@ -19,6 +19,7 @@ import {
 import {
   TextDocument
 } from 'vscode-languageserver-textdocument';
+import { promisify } from 'util';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -111,51 +112,88 @@ documents.onDidClose(e => {
   connection.sendDiagnostics({ uri: e.document.uri, diagnostics: [] });
 });
 
+let validationTimeouts: { [uri: string]: NodeJS.Timeout } = {};
+
 documents.onDidChangeContent(change => {
-  validateTextDocument(change.document);
+  debounceValidateTextDocument(change.document);
 });
+
+const unlink = promisify(fs.unlink);
+
+function debounceValidateTextDocument(textDocument: TextDocument): void {
+  const uri = textDocument.uri;
+  if (validationTimeouts[uri]) {
+    clearTimeout(validationTimeouts[uri]);
+  }
+  validationTimeouts[uri] = setTimeout(() => {
+    validateTextDocument(textDocument);
+    delete validationTimeouts[uri];
+  }, 300); // Adjust the debounce delay as needed
+}
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
-  const tempFile = path.join(__dirname, '..', 'temp_code.grc'); // Adjusted file path
+  const tempFile = path.join(__dirname, 'temp_code.grc');
 
-  // Write the text content to a temporary file
-  fs.writeFileSync(tempFile, text);
+  try {
+    fs.writeFileSync(tempFile, text);
+    execFile('node', [path.join(__dirname, 'ocaml/main.js'), tempFile], async (error, stdout, stderr) => {
+      if (error) {
+        connection.console.error(`Execution error: ${stderr}`);
+        return;
+      }
 
-  // Execute the OCaml code to analyze the file
-  execFile('node', [path.join(__dirname, 'ocaml', 'main.js'), tempFile], (error, stdout, stderr) => {
-    if (error) {
-      connection.console.error(`Error: ${stderr}`);
-      return;
+      const diagnostics: Diagnostic[] = stdout.trim().split('\n').map(line => {
+        const match = line.match(/^\u001b\[31mError:\u001b\[0m (.+) at line (\d+)\.$/);
+        if (!match) return null;
+
+        const [_, message, lineNumberStr] = match;
+        const lineNumber = parseInt(lineNumberStr, 10) - 1;
+
+        // Get the line text
+        const lineText = textDocument.getText({
+          start: { line: lineNumber, character: 0 },
+          end: { line: lineNumber + 1, character: 0 }
+        });
+
+        return {
+          severity: DiagnosticSeverity.Error,
+          range: {
+            start: { line: lineNumber, character: 0 },
+            end: { line: lineNumber, character: lineText.length }
+          },
+          message: message.trim(),
+          source: 'ocaml'
+        };
+      }).filter(diagnostic => diagnostic !== null) as Diagnostic[];
+
+      connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+
+      // Print success message if no errors
+      if (diagnostics.length === 0) {
+        connection.console.log('Success: No errors found.');
+      }
+
+      // Clean up the temporary file
+      try {
+        await unlink(tempFile);
+      } catch (cleanupErr) {
+        if ((cleanupErr as NodeJS.ErrnoException).code !== 'ENOENT') {
+          connection.console.error(`Cleanup error: ${(cleanupErr as NodeJS.ErrnoException).message}`);
+        }
+      }
+    });
+  } catch (err) {
+    connection.console.error(`File handling error: ${(err as Error).message}`);
+    try {
+      if (fs.existsSync(tempFile)) {
+        await unlink(tempFile);
+      }
+    } catch (cleanupErr) {
+      connection.console.error(`Cleanup error: ${(cleanupErr as Error).message}`);
     }
-
-    const diagnostics: Diagnostic[] = stdout.trim().split('\n').map(line => {
-      const match = line.match(/^Error: (.+) at (\d+)-(\d+)$/);
-      if (!match) return null;
-
-      const [_, message, startPos, endPos] = match;
-      return {
-        severity: DiagnosticSeverity.Error,
-        range: {
-          start: textDocument.positionAt(parseInt(startPos, 10)),
-          end: textDocument.positionAt(parseInt(endPos, 10))
-        },
-        message: message.trim(),
-        source: 'ocaml'
-      };
-    }).filter(diagnostic => diagnostic !== null) as Diagnostic[];
-
-    // Log the diagnostics
-    console.log(JSON.stringify(diagnostics, null, 2));
-
-    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-
-    // Clean up the temporary file if it exists
-    if (fs.existsSync(tempFile)) {
-      fs.unlinkSync(tempFile);
-    }
-  });
+  }
 }
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -193,3 +231,4 @@ connection.onCompletionResolve(
 );
 
 documents.listen(connection);
+connection.listen();

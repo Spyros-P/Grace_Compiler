@@ -28,11 +28,11 @@ let curr_char = ref 1
 let filename =
   match Array.to_list Sys.argv with
   | _ :: filename :: _ -> filename
-  | _ -> error "Please provide a filename as an argument\n"; exit 1
+  | _ -> error "Please provide a filename as an argument\n"; exit 0
 
 let channel =
   try open_in filename
-  with Sys_error(str) -> error "%s\n" str; exit 1
+  with Sys_error(str) -> error "%s\n" str; exit 0
 
 let lexbuf = Lexing.from_channel channel
 
