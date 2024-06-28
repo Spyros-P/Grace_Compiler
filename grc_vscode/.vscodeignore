@@ -2,3 +2,14 @@
 .vscode-test/**
 .gitignore
 vsc-extension-quickstart.md
+node_modules
+client/src
+client/out/**/*.js.map
+server/src
+server/out/**/*.js.map
+test
+.git
+*.md
+*.yml
+*.yaml
+*.log

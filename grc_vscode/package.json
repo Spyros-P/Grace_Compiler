@@ -1,21 +1,31 @@
 {
-  "name": "grc",
+  "name": "grace-ntua-compiler",
   "displayName": "Grace NTUA Compiler",
   "description": "Syntax highlighting for Grace NTUA Compiler",
   "version": "0.0.1",
+  "publisher": "Spyros-P",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Spyros-P/Grace_Compiler"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages"
   ],
-	"icon": "assets/icon.png",
+  "icon": "assets/icon.png",
   "contributes": {
     "languages": [
       {
         "id": "grace",
-        "aliases": ["Grace", "grace"],
-        "extensions": [".grc"],
+        "aliases": [
+          "Grace",
+          "grace"
+        ],
+        "extensions": [
+          ".grc"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -29,21 +39,28 @@
   },
   "main": "./client/out/extension.js",
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./client/",
-    "watch": "tsc -p ./client/ --watch",
-    "postinstall": "node ./client/node_modules/vscode/bin/install"
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run compile-client && npm run compile-server",
+    "compile-client": "npx tsc -p ./client/",
+    "compile-server": "npx tsc -p ./server/",
+    "watch": "concurrently -k -n CLIENT,SERVER -c yellow,blue \"npm run watch-client\" \"npm run watch-server\"",
+    "watch-client": "npx tsc -p ./client/ --watch",
+    "watch-server": "npx tsc -p ./server/ --watch",
+    "package": "webpack --config webpack.config.js"
   },
   "activationEvents": [
     "onLanguage:Grace"
   ],
   "devDependencies": {
     "typescript": "^4.0.0",
-    "vscode": "^1.1.37",
     "vscode-languageclient": "^7.0.0",
-    "@types/node": "^14.14.0"
+    "@types/node": "^14.14.0",
+    "@types/vscode": "^1.1.37",
+    "@vscode/test-electron": "^1.6.2",
+    "concurrently": "^7.0.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^4.0.0",
+    "ts-loader": "^8.0.0"
   },
-  "dependencies": {
-    "vscode-languageclient": "^7.0.0"
-  }
+  "dependencies": {}
 }
